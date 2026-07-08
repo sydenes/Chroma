@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="../Chroma.Application/Chroma.Application.csproj" />
+  <Project Path="../Chroma.Domain/Chroma.Domain.csproj" />
+  <Project Path="../Chroma.Infrastructure/Chroma.Infrastructure.csproj" />
+  <Project Path="Chroma.csproj" />
+</Solution>

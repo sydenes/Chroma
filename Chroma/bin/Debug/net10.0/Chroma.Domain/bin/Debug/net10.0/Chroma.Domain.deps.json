@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "Chroma.Domain/1.0.0": {
+        "runtime": {
+          "Chroma.Domain.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Chroma.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

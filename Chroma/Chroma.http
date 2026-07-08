@@ -1,0 +1,6 @@
+@Chroma_HostAddress = http://localhost:5055
+
+GET {{Chroma_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
