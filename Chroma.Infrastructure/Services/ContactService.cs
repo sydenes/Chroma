@@ -7,11 +7,14 @@ using System.Linq.Expressions;
 
 namespace Chroma.Infrastructure.Services;
 
-public class ContactService(IApplicationDbContext dbContext) : IContactService
+public class ContactService(IApplicationDbContext dbContext, ICurrentTenant currentTenant) : IContactService
 {
     public async Task<ContactSearchResult> SearchAsync(ContactSearchRequest request, CancellationToken cancellationToken)
     {
-        var queryable = dbContext.Contacts.AsNoTracking().Where(x => x.TenantId == request.TenantId);
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var queryable = dbContext.Contacts.AsNoTracking().Where(x => x.TenantId == tenantId);
 
         if (!string.IsNullOrWhiteSpace(request.Query))
         {
@@ -39,18 +42,24 @@ public class ContactService(IApplicationDbContext dbContext) : IContactService
 
     public async Task<ContactDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
         return await dbContext.Contacts
             .AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.TenantId == tenantId)
             .Select(MapToDto())
             .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<ContactDto> CreateAsync(CreateContactRequest request, CancellationToken cancellationToken)
     {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
         var entity = new Contact
         {
-            TenantId = request.TenantId,
+            TenantId = tenantId,
             OwnerId = request.OwnerId,
             CompanyId = request.CompanyId,
             FirstName = request.FirstName.Trim(),
@@ -67,7 +76,10 @@ public class ContactService(IApplicationDbContext dbContext) : IContactService
 
     public async Task<ContactDto?> UpdateAsync(Guid id, UpdateContactRequest request, CancellationToken cancellationToken)
     {
-        var entity = await dbContext.Contacts.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.Contacts.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
         if (entity is null)
         {
             return null;
@@ -86,7 +98,10 @@ public class ContactService(IApplicationDbContext dbContext) : IContactService
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var entity = await dbContext.Contacts.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.Contacts.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
         if (entity is null)
         {
             return false;

@@ -1,14 +1,18 @@
 using Chroma.Application.Common.Responses;
 using Chroma.Application.Modules.Contacts.Dtos;
 using Chroma.Application.Modules.Contacts.Services;
+using Chroma.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Chroma.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/contacts")]
 public class ContactsController(IContactService contactService) : ControllerBase
 {
+    [RequirePermission("contacts.read")]
     [HttpGet]
     public async Task<IActionResult> SearchAsync([FromQuery] ContactSearchRequest request, CancellationToken cancellationToken)
     {
@@ -16,6 +20,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
         return Ok(ApiResponse<object>.Ok(response));
     }
 
+    [RequirePermission("contacts.read")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -25,6 +30,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
             : Ok(ApiResponse<ContactDto>.Ok(contact));
     }
 
+    [RequirePermission("contacts.create")]
     [HttpPost]
     public async Task<IActionResult> CreateAsync(CreateContactRequest request, CancellationToken cancellationToken)
     {
@@ -35,6 +41,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
         return CreatedAtAction(nameof(GetByIdAsync), new { id = contact.Id }, ApiResponse<ContactDto>.Ok(contact));
     }
 
+    [RequirePermission("contacts.update")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateContactRequest request, CancellationToken cancellationToken)
     {
@@ -47,6 +54,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
             : Ok(ApiResponse<ContactDto>.Ok(contact));
     }
 
+    [RequirePermission("contacts.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -56,4 +64,3 @@ public class ContactsController(IContactService contactService) : ControllerBase
             : NotFound(ApiResponse.Fail("Contact not found."));
     }
 }
-

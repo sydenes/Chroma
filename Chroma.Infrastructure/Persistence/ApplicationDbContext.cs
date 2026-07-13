@@ -10,44 +10,44 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<ContactChannel> ContactChannels => Set<ContactChannel>();
     public DbSet<Company> Companies => Set<Company>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<ContactTag> ContactTags => Set<ContactTag>();
+    public DbSet<CompanyTag> CompanyTags => Set<CompanyTag>();
+    public DbSet<Pipeline> Pipelines => Set<Pipeline>();
+    public DbSet<Stage> Stages => Set<Stage>();
+    public DbSet<Deal> Deals => Set<Deal>();
+    public DbSet<Note> Notes => Set<Note>();
+    public DbSet<CrmTask> CrmTasks => Set<CrmTask>();
+    public DbSet<Activity> Activities => Set<Activity>();
+    public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Form> Forms => Set<Form>();
+    public DbSet<FormField> FormFields => Set<FormField>();
+    public DbSet<FormResponse> FormResponses => Set<FormResponse>();
+    public DbSet<CustomField> CustomFields => Set<CustomField>();
+    public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();
+    public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
+    public DbSet<Workflow> Workflows => Set<Workflow>();
+    public DbSet<WorkflowTrigger> WorkflowTriggers => Set<WorkflowTrigger>();
+    public DbSet<WorkflowCondition> WorkflowConditions => Set<WorkflowCondition>();
+    public DbSet<WorkflowAction> WorkflowActions => Set<WorkflowAction>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Contact>(entity =>
-        {
-            entity.ToTable("contacts");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.FirstName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.LastName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
-            entity.Property(x => x.Source).HasMaxLength(80);
-            entity.HasIndex(x => new { x.TenantId, x.LastName, x.FirstName });
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        modelBuilder.Entity<ContactChannel>(entity =>
-        {
-            entity.ToTable("contact_channels");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.ChannelType).HasMaxLength(40).IsRequired();
-            entity.Property(x => x.Value).HasMaxLength(255).IsRequired();
-            entity.HasIndex(x => new { x.TenantId, x.ChannelType, x.Value }).IsUnique();
-            entity.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        modelBuilder.Entity<Company>(entity =>
-        {
-            entity.ToTable("companies");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
-            entity.Property(x => x.Email).HasMaxLength(255);
-            entity.Property(x => x.Phone).HasMaxLength(50);
-            entity.Property(x => x.Website).HasMaxLength(255);
-            entity.HasIndex(x => new { x.TenantId, x.Name });
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
 }

@@ -1,14 +1,18 @@
 using Chroma.Application.Common.Responses;
 using Chroma.Application.Modules.Companies.Dtos;
 using Chroma.Application.Modules.Companies.Services;
+using Chroma.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Chroma.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/companies")]
 public class CompaniesController(ICompanyService companyService) : ControllerBase
 {
+    [RequirePermission("companies.read")]
     [HttpGet]
     public async Task<IActionResult> SearchAsync([FromQuery] CompanySearchRequest request, CancellationToken cancellationToken)
     {
@@ -16,6 +20,7 @@ public class CompaniesController(ICompanyService companyService) : ControllerBas
         return Ok(ApiResponse<object>.Ok(response));
     }
 
+    [RequirePermission("companies.read")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -25,6 +30,7 @@ public class CompaniesController(ICompanyService companyService) : ControllerBas
             : Ok(ApiResponse<CompanyDto>.Ok(company));
     }
 
+    [RequirePermission("companies.create")]
     [HttpPost]
     public async Task<IActionResult> CreateAsync(CreateCompanyRequest request, CancellationToken cancellationToken)
     {
@@ -35,6 +41,7 @@ public class CompaniesController(ICompanyService companyService) : ControllerBas
         return CreatedAtAction(nameof(GetByIdAsync), new { id = company.Id }, ApiResponse<CompanyDto>.Ok(company));
     }
 
+    [RequirePermission("companies.update")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateCompanyRequest request, CancellationToken cancellationToken)
     {
@@ -47,6 +54,7 @@ public class CompaniesController(ICompanyService companyService) : ControllerBas
             : Ok(ApiResponse<CompanyDto>.Ok(company));
     }
 
+    [RequirePermission("companies.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {

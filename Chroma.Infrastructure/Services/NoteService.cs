@@ -1,0 +1,141 @@
+using Chroma.Application.Abstractions;
+using Chroma.Application.Modules.Notes.Dtos;
+using Chroma.Application.Modules.Notes.Services;
+using Chroma.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+
+namespace Chroma.Infrastructure.Services;
+
+public class NoteService(IApplicationDbContext dbContext, ICurrentTenant currentTenant) : INoteService
+{
+    public async Task<NoteSearchResult> SearchAsync(NoteSearchRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var queryable = dbContext.Notes.AsNoTracking().Where(x => x.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(request.OwnerType))
+        {
+            queryable = queryable.Where(x => x.OwnerType == request.OwnerType.Trim());
+        }
+
+        if (request.OwnerId.HasValue)
+        {
+            queryable = queryable.Where(x => x.OwnerId == request.OwnerId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Query))
+        {
+            queryable = queryable.Where(x => x.Content.Contains(request.Query.Trim()));
+        }
+
+        var totalCount = await queryable.CountAsync(cancellationToken);
+        var skip = (request.Page - 1) * request.PageSize;
+
+        var items = await queryable
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Skip(skip)
+            .Take(request.PageSize)
+            .Select(MapToDto())
+            .ToListAsync(cancellationToken);
+
+        return new NoteSearchResult { TotalCount = totalCount, Items = items };
+    }
+
+    public async Task<NoteDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        return await dbContext.Notes
+            .AsNoTracking()
+            .Where(x => x.Id == id && x.TenantId == tenantId)
+            .Select(MapToDto())
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<NoteDto> CreateAsync(CreateNoteRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = new Note
+        {
+            TenantId = tenantId,
+            AuthorId = request.AuthorId,
+            OwnerType = request.OwnerType.Trim(),
+            OwnerId = request.OwnerId,
+            Content = request.Content.Trim()
+        };
+
+        dbContext.Notes.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(entity);
+    }
+
+    public async Task<NoteDto?> UpdateAsync(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.Notes.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        entity.Content = request.Content.Trim();
+        entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.Notes.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.IsDeleted = true;
+        entity.DeletedAtUtc = DateTime.UtcNow;
+        entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private static NoteDto ToDto(Note entity)
+    {
+        return new NoteDto
+        {
+            Id = entity.Id,
+            TenantId = entity.TenantId,
+            AuthorId = entity.AuthorId,
+            OwnerType = entity.OwnerType,
+            OwnerId = entity.OwnerId,
+            Content = entity.Content
+        };
+    }
+
+    private static Expression<Func<Note, NoteDto>> MapToDto()
+    {
+        return x => new NoteDto
+        {
+            Id = x.Id,
+            TenantId = x.TenantId,
+            AuthorId = x.AuthorId,
+            OwnerType = x.OwnerType,
+            OwnerId = x.OwnerId,
+            Content = x.Content
+        };
+    }
+}

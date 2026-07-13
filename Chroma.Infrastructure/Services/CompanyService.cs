@@ -7,11 +7,14 @@ using System.Linq.Expressions;
 
 namespace Chroma.Infrastructure.Services;
 
-public class CompanyService(IApplicationDbContext dbContext) : ICompanyService
+public class CompanyService(IApplicationDbContext dbContext, ICurrentTenant currentTenant) : ICompanyService
 {
     public async Task<CompanySearchResult> SearchAsync(CompanySearchRequest request, CancellationToken cancellationToken)
     {
-        var queryable = dbContext.Companies.AsNoTracking().Where(x => x.TenantId == request.TenantId);
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var queryable = dbContext.Companies.AsNoTracking().Where(x => x.TenantId == tenantId);
         if (!string.IsNullOrWhiteSpace(request.Query))
         {
             queryable = queryable.Where(x => x.Name.Contains(request.Query.Trim()));
@@ -31,17 +34,23 @@ public class CompanyService(IApplicationDbContext dbContext) : ICompanyService
 
     public Task<CompanyDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
         return dbContext.Companies.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.TenantId == tenantId)
             .Select(MapToDto())
             .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<CompanyDto> CreateAsync(CreateCompanyRequest request, CancellationToken cancellationToken)
     {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
         var entity = new Company
         {
-            TenantId = request.TenantId,
+            TenantId = tenantId,
             OwnerId = request.OwnerId,
             Name = request.Name.Trim(),
             Website = request.Website,
@@ -55,7 +64,10 @@ public class CompanyService(IApplicationDbContext dbContext) : ICompanyService
 
     public async Task<CompanyDto?> UpdateAsync(Guid id, UpdateCompanyRequest request, CancellationToken cancellationToken)
     {
-        var entity = await dbContext.Companies.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.Companies.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
         if (entity is null)
         {
             return null;
@@ -73,7 +85,10 @@ public class CompanyService(IApplicationDbContext dbContext) : ICompanyService
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        var entity = await dbContext.Companies.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.Companies.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
         if (entity is null)
         {
             return false;
