@@ -102,5 +102,30 @@ dotnet run --project .\Chroma\Chroma.csproj
 
 **Demo giriş:** tenant `demo` · `admin@demo.local` · `Admin123!`
 
-**Son güncelleme:** 2026-07-09  
-**Durum:** Faz 0–7 tamamlandı. Sonraki adım: gerçek provider entegrasyonları ve UI.
+**Son güncelleme:** 2026-07-13  
+**Durum:** Faz 0–7 tamamlandı. UI geliştirmesi başladı (ChromaUI).
+
+---
+
+## 10) UI — ChromaUI (React)
+
+### Faz 8 — Web Arayüzü [~]
+- [x] Vite + React + TypeScript + Tailwind iskeleti
+- [x] JWT auth (login, refresh, protected routes)
+- [x] App shell (sidebar, layout)
+- [x] Dashboard (özet istatistikler)
+- [x] Kişiler sayfası (liste, arama, CRUD)
+- [x] Şirketler sayfası (liste, arama, oluşturma)
+- [x] Fırsatlar Kanban board (pipeline, aşama taşıma)
+- [ ] Görevler, aktiviteler, notlar
+- [ ] Mesajlaşma / konuşmalar
+- [ ] Bildirimler
+- [ ] Ayarlar (tenant, kullanıcılar, roller)
+- [ ] Formlar, özel alanlar, dosyalar
+- [ ] Raporlar dashboard
+
+```powershell
+cd ChromaUI
+npm install
+npm run dev
+```

@@ -99,6 +99,15 @@ try
     builder.Services.AddHostedService<ArchiveBackgroundService>();
 
     builder.Services.AddAuthorization();
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("ChromaUI", policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+    });
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -114,6 +123,7 @@ try
     }
 
     app.UseHttpsRedirection();
+    app.UseCors("ChromaUI");
     app.UseRateLimiter();
 
     app.MapHealthChecks("/health");
