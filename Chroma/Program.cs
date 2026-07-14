@@ -22,6 +22,12 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    // Git'e girmeyen yerel override (örn. Neon connection string)
+    builder.Configuration.AddJsonFile(
+        $"appsettings.{builder.Environment.EnvironmentName}.local.json",
+        optional: true,
+        reloadOnChange: true);
+
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
