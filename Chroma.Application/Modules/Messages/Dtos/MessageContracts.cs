@@ -7,6 +7,8 @@ public sealed class MessageDto
     public Guid ConversationId { get; init; }
     public Guid ChannelId { get; init; }
     public string Direction { get; init; } = "IN";
+    public Guid? SenderUserId { get; init; }
+    public string? SenderDisplayName { get; init; }
     public string MessageType { get; init; } = "text";
     public string? ExternalId { get; init; }
     public string? Text { get; init; }

@@ -20,7 +20,7 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         entity.Property(x => x.DeletedAtUtc).HasColumnType("timestamptz");
 
         entity.HasIndex(x => x.TokenHash).IsUnique();
-        entity.HasIndex(x => new { x.UserId, x.ExpiresAtUtc });
+        entity.HasIndex(x => new { x.UserId, x.TenantId, x.ExpiresAtUtc });
         entity.HasQueryFilter(x => !x.IsDeleted);
     }
 }

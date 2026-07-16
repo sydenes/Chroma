@@ -48,7 +48,7 @@ public class DealsController(IDealService dealService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Title is required."));
 
         var deal = await dealService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = deal.Id }, ApiResponse<DealDto>.Ok(deal));
+        return CreatedAtAction("GetById", new { id = deal.Id }, ApiResponse<DealDto>.Ok(deal));
     }
 
     [RequirePermission("deals.update")]

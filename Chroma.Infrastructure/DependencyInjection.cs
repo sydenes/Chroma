@@ -10,6 +10,8 @@ using Chroma.Application.Modules.Pipelines.Services;
 using Chroma.Application.Modules.Deals.Services;
 using Chroma.Application.Modules.Notes.Services;
 using Chroma.Application.Modules.Tasks.Services;
+using Chroma.Application.Modules.Appointments.Services;
+using Chroma.Application.Modules.Offers.Services;
 using Chroma.Application.Modules.Activities.Services;
 using Chroma.Application.Modules.Channels.Services;
 using Chroma.Application.Modules.Conversations.Services;
@@ -67,6 +69,8 @@ public static class DependencyInjection
         services.AddScoped<IDealService, DealService>();
         services.AddScoped<INoteService, NoteService>();
         services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IAppointmentService, AppointmentService>();
+        services.AddScoped<IOfferService, OfferService>();
         services.AddScoped<IActivityService, ActivityService>();
         services.AddScoped<IChannelService, ChannelService>();
         services.AddScoped<IConversationService, ConversationService>();

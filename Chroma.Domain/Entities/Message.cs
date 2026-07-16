@@ -7,7 +7,15 @@ public class Message : BaseEntity
     public Guid TenantId { get; set; }
     public Guid ConversationId { get; set; }
     public Guid ChannelId { get; set; }
+    /// <summary>
+    /// Channel/provider semantics: IN = received from external party, OUT = sent via API/agent.
+    /// Not used for bubble alignment in multi-party (team/group) chats — use SenderUserId.
+    /// </summary>
     public string Direction { get; set; } = "IN";
+    /// <summary>Tenant user who authored the message (team/group). Null for pure external inbound.</summary>
+    public Guid? SenderUserId { get; set; }
+    /// <summary>Denormalized display name for group UIs (avoids N+1 joins).</summary>
+    public string? SenderDisplayName { get; set; }
     public string MessageType { get; set; } = "text";
     public string? ExternalId { get; set; }
     public string? Text { get; set; }

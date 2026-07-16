@@ -16,32 +16,41 @@ public class UserService(
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var queryable = dbContext.Users.AsNoTracking().Where(x => x.TenantId == tenantId);
+        var queryable = dbContext.UserTenants
+            .AsNoTracking()
+            .Include(x => x.User)
+            .Where(x => x.TenantId == tenantId);
 
         if (!string.IsNullOrWhiteSpace(request.Query))
         {
             var text = request.Query.Trim();
             queryable = queryable.Where(x =>
-                (x.FirstName + " " + x.LastName).Contains(text) || x.Email.Contains(text));
+                (x.User.FirstName + " " + x.User.LastName).Contains(text) || x.User.Email.Contains(text));
         }
 
         var totalCount = await queryable.CountAsync(cancellationToken);
         var skip = (request.Page - 1) * request.PageSize;
 
-        var users = await queryable
-            .OrderBy(x => x.LastName)
-            .ThenBy(x => x.FirstName)
+        var memberships = await queryable
+            .OrderBy(x => x.User.LastName)
+            .ThenBy(x => x.User.FirstName)
             .Skip(skip)
             .Take(request.PageSize)
             .ToListAsync(cancellationToken);
 
-        var userIds = users.Select(x => x.Id).ToArray();
-        var rolesByUser = await GetRolesByUserIdsAsync(userIds, cancellationToken);
+        var userIds = memberships.Select(x => x.UserId).ToArray();
+        var rolesByUser = await GetRolesByUserIdsAsync(userIds, tenantId, cancellationToken);
 
         return new UserSearchResult
         {
             TotalCount = totalCount,
-            Items = users.Select(user => ToDto(user, rolesByUser.GetValueOrDefault(user.Id, []))).ToArray()
+            Items = memberships
+                .Select(membership =>
+                {
+                    var roles = rolesByUser.GetValueOrDefault(membership.UserId, []);
+                    return ToDto(membership, roles);
+                })
+                .ToArray()
         };
     }
 
@@ -50,17 +59,18 @@ public class UserService(
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var user = await dbContext.Users
+        var membership = await dbContext.UserTenants
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.UserId == id && x.TenantId == tenantId, cancellationToken);
 
-        if (user is null)
+        if (membership is null)
         {
             return null;
         }
 
-        var roles = await GetRoleNamesForUserAsync(user.Id, cancellationToken);
-        return ToDto(user, roles);
+        var roles = await GetRolesForUserAsync(membership.UserId, tenantId, cancellationToken);
+        return ToDto(membership, roles);
     }
 
     public async Task<UserDto> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken)
@@ -69,29 +79,49 @@ public class UserService(
             ?? throw new InvalidOperationException("Tenant context is required.");
 
         var email = request.Email.Trim().ToLowerInvariant();
-        var exists = await dbContext.Users.AnyAsync(x => x.TenantId == tenantId && x.Email == email, cancellationToken);
-        if (exists)
+        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+        if (user is not null)
         {
-            throw new InvalidOperationException("A user with this email already exists.");
+            var membershipExists = await dbContext.UserTenants
+                .AnyAsync(x => x.UserId == user.Id && x.TenantId == tenantId, cancellationToken);
+
+            if (membershipExists)
+            {
+                throw new InvalidOperationException("Bu e-posta ile kayıtlı bir kullanıcı zaten bu müşteride var.");
+            }
         }
 
-        var user = new User
+        if (user is null)
         {
+            user = new User
+            {
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                Email = email,
+                Phone = request.Phone,
+                PasswordHash = passwordHasher.Hash(request.Password),
+                Status = "active"
+            };
+
+            dbContext.Users.Add(user);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var membership = new UserTenant
+        {
+            UserId = user.Id,
             TenantId = tenantId,
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            Email = email,
-            Phone = request.Phone,
-            PasswordHash = passwordHasher.Hash(request.Password),
-            Status = "active"
+            Status = "active",
+            IsDefault = !await dbContext.UserTenants.AnyAsync(x => x.UserId == user.Id, cancellationToken)
         };
 
-        dbContext.Users.Add(user);
+        dbContext.UserTenants.Add(membership);
         await dbContext.SaveChangesAsync(cancellationToken);
-        await ReplaceUserRolesAsync(user.Id, request.RoleIds, cancellationToken);
+        await ReplaceUserRolesAsync(user.Id, tenantId, request.RoleIds, cancellationToken);
 
-        var roles = await GetRoleNamesForUserAsync(user.Id, cancellationToken);
-        return ToDto(user, roles);
+        membership.User = user;
+        var roles = await GetRolesForUserAsync(user.Id, tenantId, cancellationToken);
+        return ToDto(membership, roles);
     }
 
     public async Task<UserDto?> UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
@@ -99,31 +129,55 @@ public class UserService(
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
-        if (user is null)
+        var membership = await dbContext.UserTenants
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.UserId == id && x.TenantId == tenantId, cancellationToken);
+        if (membership is null)
         {
             return null;
         }
 
+        var user = membership.User;
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
         user.Phone = request.Phone;
-        user.Status = string.IsNullOrWhiteSpace(request.Status) ? user.Status : request.Status.Trim().ToLowerInvariant();
+        membership.Status = string.IsNullOrWhiteSpace(request.Status)
+            ? membership.Status
+            : request.Status.Trim().ToLowerInvariant();
         user.UpdatedAtUtc = DateTime.UtcNow;
+        membership.UpdatedAtUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await ReplaceUserRolesAsync(user.Id, request.RoleIds, cancellationToken);
+        await ReplaceUserRolesAsync(user.Id, tenantId, request.RoleIds, cancellationToken);
 
-        var roles = await GetRoleNamesForUserAsync(user.Id, cancellationToken);
-        return ToDto(user, roles);
+        var roles = await GetRolesForUserAsync(user.Id, tenantId, cancellationToken);
+        return ToDto(membership, roles);
     }
 
-    private async Task ReplaceUserRolesAsync(Guid userId, IReadOnlyCollection<Guid> roleIds, CancellationToken cancellationToken)
+    private async Task ReplaceUserRolesAsync(
+        Guid userId,
+        Guid tenantId,
+        IReadOnlyCollection<Guid> roleIds,
+        CancellationToken cancellationToken)
     {
-        var existing = await dbContext.UserRoles.Where(x => x.UserId == userId).ToListAsync(cancellationToken);
+        var tenantRoleIds = await dbContext.Roles
+            .AsNoTracking()
+            .Where(x => x.TenantId == tenantId)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var requestedRoleIds = roleIds.Distinct().ToArray();
+        if (requestedRoleIds.Any(roleId => !tenantRoleIds.Contains(roleId)))
+        {
+            throw new InvalidOperationException("Seçilen roller bu müşteriye ait değil.");
+        }
+
+        var existing = await dbContext.UserRoles
+            .Where(x => x.UserId == userId && tenantRoleIds.Contains(x.RoleId))
+            .ToListAsync(cancellationToken);
         dbContext.UserRoles.RemoveRange(existing);
 
-        foreach (var roleId in roleIds.Distinct())
+        foreach (var roleId in requestedRoleIds)
         {
             dbContext.UserRoles.Add(new UserRole { UserId = userId, RoleId = roleId });
         }
@@ -131,42 +185,61 @@ public class UserService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<IReadOnlyCollection<string>> GetRoleNamesForUserAsync(Guid userId, CancellationToken cancellationToken)
+    private async Task<IReadOnlyCollection<(Guid Id, string Name)>> GetRolesForUserAsync(
+        Guid userId,
+        Guid tenantId,
+        CancellationToken cancellationToken)
     {
-        return await dbContext.UserRoles
+        var rows = await dbContext.UserRoles
             .AsNoTracking()
             .Where(x => x.UserId == userId)
-            .Join(dbContext.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, role) => role.Name)
+            .Join(
+                dbContext.Roles.AsNoTracking().Where(role => role.TenantId == tenantId),
+                ur => ur.RoleId,
+                role => role.Id,
+                (_, role) => new { role.Id, role.Name })
             .ToListAsync(cancellationToken);
+
+        return rows.Select(x => (x.Id, x.Name)).ToArray();
     }
 
-    private async Task<Dictionary<Guid, IReadOnlyCollection<string>>> GetRolesByUserIdsAsync(
+    private async Task<Dictionary<Guid, IReadOnlyCollection<(Guid Id, string Name)>>> GetRolesByUserIdsAsync(
         Guid[] userIds,
+        Guid tenantId,
         CancellationToken cancellationToken)
     {
         var rows = await dbContext.UserRoles
             .AsNoTracking()
             .Where(x => userIds.Contains(x.UserId))
-            .Join(dbContext.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (ur, role) => new { ur.UserId, role.Name })
+            .Join(
+                dbContext.Roles.AsNoTracking().Where(role => role.TenantId == tenantId),
+                ur => ur.RoleId,
+                role => role.Id,
+                (ur, role) => new { ur.UserId, role.Id, role.Name })
             .ToListAsync(cancellationToken);
 
         return rows
             .GroupBy(x => x.UserId)
-            .ToDictionary(g => g.Key, g => (IReadOnlyCollection<string>)g.Select(x => x.Name).ToArray());
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyCollection<(Guid Id, string Name)>)g.Select(x => (x.Id, x.Name)).ToArray());
     }
 
-    private static UserDto ToDto(User user, IReadOnlyCollection<string> roles)
+    private static UserDto ToDto(
+        UserTenant membership,
+        IReadOnlyCollection<(Guid Id, string Name)> roles)
     {
         return new UserDto
         {
-            Id = user.Id,
-            TenantId = user.TenantId,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            Phone = user.Phone,
-            Status = user.Status,
-            Roles = roles
+            Id = membership.User.Id,
+            TenantId = membership.TenantId,
+            FirstName = membership.User.FirstName,
+            LastName = membership.User.LastName,
+            Email = membership.User.Email,
+            Phone = membership.User.Phone,
+            Status = membership.Status,
+            Roles = roles.Select(x => x.Name).ToArray(),
+            RoleIds = roles.Select(x => x.Id).ToArray()
         };
     }
 }

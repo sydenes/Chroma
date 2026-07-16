@@ -32,7 +32,28 @@ public class PipelineService(IApplicationDbContext dbContext, ICurrentTenant cur
             .Select(MapToDtoWithoutStages())
             .ToListAsync(cancellationToken);
 
-        return new PipelineSearchResult { TotalCount = totalCount, Items = items };
+        var pipelineIds = items.Select(x => x.Id).ToArray();
+        var stagesByPipeline = await dbContext.Stages
+            .AsNoTracking()
+            .Where(x => pipelineIds.Contains(x.PipelineId) && x.TenantId == tenantId)
+            .OrderBy(x => x.Order)
+            .Select(MapStageToDto())
+            .ToListAsync(cancellationToken);
+
+        var stagesLookup = stagesByPipeline
+            .GroupBy(x => x.PipelineId)
+            .ToDictionary(x => x.Key, x => (IReadOnlyCollection<StageDto>)x.ToArray());
+
+        var itemsWithStages = items.Select(pipeline => new PipelineDto
+        {
+            Id = pipeline.Id,
+            TenantId = pipeline.TenantId,
+            Name = pipeline.Name,
+            Order = pipeline.Order,
+            Stages = stagesLookup.GetValueOrDefault(pipeline.Id, [])
+        }).ToArray();
+
+        return new PipelineSearchResult { TotalCount = totalCount, Items = itemsWithStages };
     }
 
     public async Task<PipelineDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)

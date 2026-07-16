@@ -6,7 +6,13 @@ public sealed class ConversationDto
     public Guid TenantId { get; init; }
     public Guid ChannelId { get; init; }
     public Guid? ContactId { get; init; }
+    public string? ContactName { get; set; }
     public Guid? AssignedUserId { get; init; }
+    public Guid? PeerUserId { get; set; }
+    public string? PeerUserName { get; set; }
+    /// <summary>team | external</summary>
+    public string Kind { get; set; } = "external";
+    public string Title { get; set; } = string.Empty;
     public string Status { get; init; } = "open";
     public int UnreadCount { get; init; }
     public string? ExternalConversationId { get; init; }
@@ -19,6 +25,10 @@ public sealed class ConversationSearchRequest
     public Guid? ChannelId { get; init; }
     public Guid? ContactId { get; init; }
     public Guid? AssignedUserId { get; init; }
+    /// <summary>team | external</summary>
+    public string? Kind { get; init; }
+    /// <summary>true ise sadece mevcut kullanıcının katıldığı konuşmalar</summary>
+    public bool? MineOnly { get; init; }
     public string? Status { get; init; }
     public bool? HasUnread { get; init; }
     public string? Query { get; init; }
@@ -35,9 +45,11 @@ public sealed class ConversationSearchResult
 public sealed class CreateConversationRequest
 {
     public Guid TenantId { get; init; }
-    public Guid ChannelId { get; init; }
+    public Guid? ChannelId { get; init; }
     public Guid? ContactId { get; init; }
     public Guid? AssignedUserId { get; init; }
+    /// <summary>Ekip sohbeti için karşı taraf kullanıcı id</summary>
+    public Guid? PeerUserId { get; init; }
     public string? ExternalConversationId { get; init; }
 }
 

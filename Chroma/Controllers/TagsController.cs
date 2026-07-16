@@ -38,7 +38,7 @@ public class TagsController(ITagService tagService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Name is required."));
 
         var tag = await tagService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = tag.Id }, ApiResponse<TagDto>.Ok(tag));
+        return CreatedAtAction("GetById", new { id = tag.Id }, ApiResponse<TagDto>.Ok(tag));
     }
 
     [RequirePermission("tags.update")]

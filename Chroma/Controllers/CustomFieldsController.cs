@@ -49,7 +49,7 @@ public class CustomFieldsController(ICustomFieldService customFieldService) : Co
             return BadRequest(ApiResponse.Fail("Name and EntityType are required."));
 
         var field = await customFieldService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = field.Id }, ApiResponse<CustomFieldDto>.Ok(field));
+        return CreatedAtAction("GetById", new { id = field.Id }, ApiResponse<CustomFieldDto>.Ok(field));
     }
 
     [RequirePermission("custom_fields.set_value")]

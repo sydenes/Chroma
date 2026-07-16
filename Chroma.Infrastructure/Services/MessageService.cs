@@ -7,7 +7,10 @@ using System.Linq.Expressions;
 
 namespace Chroma.Infrastructure.Services;
 
-public class MessageService(IApplicationDbContext dbContext, ICurrentTenant currentTenant) : IMessageService
+public class MessageService(
+    IApplicationDbContext dbContext,
+    ICurrentTenant currentTenant,
+    ICurrentUser currentUser) : IMessageService
 {
     public async Task<MessageSearchResult> SearchAsync(MessageSearchRequest request, CancellationToken cancellationToken)
     {
@@ -53,9 +56,22 @@ public class MessageService(IApplicationDbContext dbContext, ICurrentTenant curr
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
+        var senderUserId = currentUser.UserId
+            ?? throw new InvalidOperationException("Authenticated user is required to send messages.");
+
         var conversation = await dbContext.Conversations
             .FirstOrDefaultAsync(x => x.Id == request.ConversationId && x.TenantId == tenantId, cancellationToken)
             ?? throw new InvalidOperationException("Conversation not found.");
+
+        var sender = await dbContext.Users
+            .AsNoTracking()
+            .Where(x => x.Id == senderUserId)
+            .Select(x => new { x.FirstName, x.LastName })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var displayName = sender is null
+            ? null
+            : $"{sender.FirstName} {sender.LastName}".Trim();
 
         var entity = new Message
         {
@@ -63,6 +79,8 @@ public class MessageService(IApplicationDbContext dbContext, ICurrentTenant curr
             ConversationId = request.ConversationId,
             ChannelId = request.ChannelId,
             Direction = "OUT",
+            SenderUserId = senderUserId,
+            SenderDisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName,
             MessageType = request.MessageType,
             Text = request.Text,
             MediaUrl = request.MediaUrl,
@@ -89,6 +107,8 @@ public class MessageService(IApplicationDbContext dbContext, ICurrentTenant curr
             ConversationId = entity.ConversationId,
             ChannelId = entity.ChannelId,
             Direction = entity.Direction,
+            SenderUserId = entity.SenderUserId,
+            SenderDisplayName = entity.SenderDisplayName,
             MessageType = entity.MessageType,
             ExternalId = entity.ExternalId,
             Text = entity.Text,
@@ -109,6 +129,8 @@ public class MessageService(IApplicationDbContext dbContext, ICurrentTenant curr
             ConversationId = x.ConversationId,
             ChannelId = x.ChannelId,
             Direction = x.Direction,
+            SenderUserId = x.SenderUserId,
+            SenderDisplayName = x.SenderDisplayName,
             MessageType = x.MessageType,
             ExternalId = x.ExternalId,
             Text = x.Text,

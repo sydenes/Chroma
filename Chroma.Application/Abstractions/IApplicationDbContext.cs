@@ -10,6 +10,7 @@ public interface IApplicationDbContext
     DbSet<Company> Companies { get; }
     DbSet<Tenant> Tenants { get; }
     DbSet<User> Users { get; }
+    DbSet<UserTenant> UserTenants { get; }
     DbSet<Role> Roles { get; }
     DbSet<Permission> Permissions { get; }
     DbSet<RolePermission> RolePermissions { get; }
@@ -42,6 +43,8 @@ public interface IApplicationDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<Appointment> Appointments { get; }
+    DbSet<OfferPackage> OfferPackages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

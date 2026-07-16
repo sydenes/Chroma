@@ -26,7 +26,7 @@ public class UsersController(IUserService userService) : ControllerBase
     {
         var user = await userService.GetByIdAsync(id, cancellationToken);
         return user is null
-            ? NotFound(ApiResponse.Fail("User not found."))
+            ? NotFound(ApiResponse.Fail("Kullanıcı bulunamadı."))
             : Ok(ApiResponse<UserDto>.Ok(user));
     }
 
@@ -39,13 +39,13 @@ public class UsersController(IUserService userService) : ControllerBase
             string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return BadRequest(ApiResponse.Fail("FirstName, LastName, Email and Password are required."));
+            return BadRequest(ApiResponse.Fail("Ad, soyad, e-posta ve şifre zorunludur."));
         }
 
         try
         {
             var user = await userService.CreateAsync(request, cancellationToken);
-            return CreatedAtAction(nameof(GetByIdAsync), new { id = user.Id }, ApiResponse<UserDto>.Ok(user));
+            return CreatedAtAction("GetById", new { id = user.Id }, ApiResponse<UserDto>.Ok(user));
         }
         catch (InvalidOperationException ex)
         {
@@ -59,12 +59,19 @@ public class UsersController(IUserService userService) : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
         {
-            return BadRequest(ApiResponse.Fail("FirstName and LastName are required."));
+            return BadRequest(ApiResponse.Fail("Ad ve soyad zorunludur."));
         }
 
-        var user = await userService.UpdateAsync(id, request, cancellationToken);
-        return user is null
-            ? NotFound(ApiResponse.Fail("User not found."))
-            : Ok(ApiResponse<UserDto>.Ok(user));
+        try
+        {
+            var user = await userService.UpdateAsync(id, request, cancellationToken);
+            return user is null
+                ? NotFound(ApiResponse.Fail("Kullanıcı bulunamadı."))
+                : Ok(ApiResponse<UserDto>.Ok(user));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse.Fail(ex.Message));
+        }
     }
 }

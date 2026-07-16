@@ -40,7 +40,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
         }
 
         var role = await roleService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = role.Id }, ApiResponse<RoleDto>.Ok(role));
+        return CreatedAtAction("GetById", new { id = role.Id }, ApiResponse<RoleDto>.Ok(role));
     }
 
     [RequirePermission("roles.manage_permissions")]

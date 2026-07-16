@@ -14,11 +14,10 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.TenantSlug) ||
-            string.IsNullOrWhiteSpace(request.Email) ||
+        if (string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return BadRequest(ApiResponse.Fail("TenantSlug, Email and Password are required."));
+            return BadRequest(ApiResponse.Fail("Email and Password are required."));
         }
 
         var result = await authService.LoginAsync(request, cancellationToken);

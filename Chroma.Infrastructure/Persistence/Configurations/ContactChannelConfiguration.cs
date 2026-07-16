@@ -18,7 +18,9 @@ public class ContactChannelConfiguration : IEntityTypeConfiguration<ContactChann
         entity.Property(x => x.UpdatedAtUtc).HasColumnType("timestamptz");
         entity.Property(x => x.DeletedAtUtc).HasColumnType("timestamptz");
 
-        entity.HasIndex(x => new { x.TenantId, x.ChannelType, x.Value }).IsUnique();
+        entity.HasIndex(x => new { x.TenantId, x.ChannelType, x.Value })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
         entity.HasOne<Contact>().WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.Cascade);
         entity.HasQueryFilter(x => !x.IsDeleted);
     }

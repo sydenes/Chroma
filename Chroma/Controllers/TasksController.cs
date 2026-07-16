@@ -38,7 +38,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Title is required."));
 
         var task = await taskService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = task.Id }, ApiResponse<CrmTaskDto>.Ok(task));
+        return CreatedAtAction("GetById", new { id = task.Id }, ApiResponse<CrmTaskDto>.Ok(task));
     }
 
     [RequirePermission("tasks.update")]

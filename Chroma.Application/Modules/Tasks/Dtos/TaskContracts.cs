@@ -14,6 +14,8 @@ public sealed class CrmTaskDto
     public string Priority { get; init; } = "normal";
     public DateTime? DueAtUtc { get; init; }
     public DateTime? CompletedAtUtc { get; init; }
+    public string? ContactName { get; set; }
+    public string? OwnerName { get; set; }
 }
 
 public sealed class CrmTaskSearchRequest

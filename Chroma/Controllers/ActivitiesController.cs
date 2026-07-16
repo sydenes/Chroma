@@ -38,7 +38,7 @@ public class ActivitiesController(IActivityService activityService) : Controller
             return BadRequest(ApiResponse.Fail("Subject is required."));
 
         var activity = await activityService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = activity.Id }, ApiResponse<ActivityDto>.Ok(activity));
+        return CreatedAtAction("GetById", new { id = activity.Id }, ApiResponse<ActivityDto>.Ok(activity));
     }
 
     [RequirePermission("activities.update")]

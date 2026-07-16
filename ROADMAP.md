@@ -109,20 +109,24 @@ dotnet run --project .\Chroma\Chroma.csproj
 
 ## 10) UI — ChromaUI (React)
 
-### Faz 8 — Web Arayüzü [~]
+### Faz 8 — Web Arayüzü [x]
 - [x] Vite + React + TypeScript + Tailwind iskeleti
 - [x] JWT auth (login, refresh, protected routes)
 - [x] App shell (sidebar, layout)
 - [x] Dashboard (özet istatistikler)
-- [x] Kişiler sayfası (liste, arama, CRUD)
-- [x] Şirketler sayfası (liste, arama, oluşturma)
-- [x] Fırsatlar Kanban board (pipeline, aşama taşıma)
-- [ ] Görevler, aktiviteler, notlar
-- [ ] Mesajlaşma / konuşmalar
-- [ ] Bildirimler
-- [ ] Ayarlar (tenant, kullanıcılar, roller)
-- [ ] Formlar, özel alanlar, dosyalar
-- [ ] Raporlar dashboard
+- [x] Danışanlar (liste, arama, CRUD, uzman atama)
+- [x] Kullanıcılar (liste, ekleme, rol/durum)
+- [x] Başvuru havuzu (Kanban)
+- [x] Randevu (CRUD, durum, uzman/danışan)
+- [x] Hatırlatıcılar / görevler
+- [x] Tıbbi bilgi / danışan notları
+- [x] Teklifler / seans paketleri
+- [x] Raporlar (pipeline dönüşüm)
+- [x] Operasyon / seans raporu (aktivite hacmi)
+- [x] Tanımlar (etiket, özel alan, kanal, ayarlar)
+- [x] Chat + WhatsApp inbox (DB mesajlaşma)
+- [ ] Bildirim merkezi (sonraki)
+- [ ] Gerçek WhatsApp/Meta outbound (sonraki)
 
 ```powershell
 cd ChromaUI

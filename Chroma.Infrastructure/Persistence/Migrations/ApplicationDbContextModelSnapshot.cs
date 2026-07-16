@@ -91,6 +91,70 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.ToTable("activities", (string)null);
                 });
 
+            modelBuilder.Entity("Chroma.Domain.Entities.Appointment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime>("EndsAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("TenantId", "ContactId");
+
+                    b.HasIndex("TenantId", "StartsAtUtc");
+
+                    b.ToTable("appointments", (string)null);
+                });
+
             modelBuilder.Entity("Chroma.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -277,11 +341,20 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamptz");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("timestamptz");
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("EstimatedValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -300,8 +373,18 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
+                    b.Property<string>("LifecycleStage")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PotentialType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<string>("Source")
                         .HasMaxLength(80)
@@ -321,6 +404,8 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "LastName", "FirstName");
+
+                    b.HasIndex("TenantId", "PotentialType", "LifecycleStage");
 
                     b.ToTable("contacts", (string)null);
                 });
@@ -370,7 +455,8 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("TenantId", "ChannelType", "Value")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("contact_channels", (string)null);
                 });
@@ -942,6 +1028,13 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("timestamptz");
 
+                    b.Property<string>("SenderDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("SenderUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("SentAtUtc")
                         .HasColumnType("timestamptz");
 
@@ -960,6 +1053,8 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamptz");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SenderUserId");
 
                     b.HasIndex("ChannelId", "ExternalId")
                         .IsUnique()
@@ -1066,6 +1161,62 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "UserId", "IsRead");
 
                     b.ToTable("notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Chroma.Domain.Entities.OfferPackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("SessionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("offer_packages", (string)null);
                 });
 
             modelBuilder.Entity("Chroma.Domain.Entities.OutboxMessage", b =>
@@ -1213,6 +1364,9 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("RevokedAtUtc")
                         .HasColumnType("timestamptz");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1229,7 +1383,7 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasIndex("TokenHash")
                         .IsUnique();
 
-                    b.HasIndex("UserId", "ExpiresAtUtc");
+                    b.HasIndex("UserId", "TenantId", "ExpiresAtUtc");
 
                     b.ToTable("refresh_tokens", (string)null);
                 });
@@ -1612,15 +1766,12 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("timestamptz");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Email")
+                    b.HasIndex("Email")
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
 
@@ -1640,6 +1791,49 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("Chroma.Domain.Entities.UserTenant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.HasIndex("UserId", "TenantId")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("user_tenants", (string)null);
                 });
 
             modelBuilder.Entity("Chroma.Domain.Entities.Workflow", b =>
@@ -1821,6 +2015,19 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasOne("Chroma.Domain.Entities.Deal", null)
                         .WithMany()
                         .HasForeignKey("DealId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Chroma.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Chroma.Domain.Entities.Appointment", b =>
+                {
+                    b.HasOne("Chroma.Domain.Entities.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Chroma.Domain.Entities.User", null)
@@ -2012,6 +2219,11 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Chroma.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Chroma.Domain.Entities.Note", b =>
@@ -2074,6 +2286,25 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Chroma.Domain.Entities.UserTenant", b =>
+                {
+                    b.HasOne("Chroma.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Chroma.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
 
                     b.Navigation("User");
                 });

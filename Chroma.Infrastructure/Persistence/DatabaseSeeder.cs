@@ -58,7 +58,12 @@ public static class DatabaseSeeder
         ("channels.update", "Update channels"),
         ("channels.delete", "Delete channels"),
         ("conversations.read", "View conversations"),
+        ("conversations.create", "Create conversations"),
         ("conversations.update", "Update conversations"),
+        ("conversations.assign", "Assign conversations"),
+        ("conversations.update_status", "Update conversation status"),
+        ("conversations.mark_read", "Mark conversations read"),
+        ("conversations.delete", "Delete conversations"),
         ("messages.read", "View messages"),
         ("messages.send", "Send messages"),
         ("forms.read", "View forms"),
@@ -78,7 +83,15 @@ public static class DatabaseSeeder
         ("workflows.delete", "Delete workflows"),
         ("notifications.read", "View notifications"),
         ("notifications.update", "Update notifications"),
-        ("reports.read", "View reports")
+        ("reports.read", "View reports"),
+        ("appointments.read", "View appointments"),
+        ("appointments.create", "Create appointments"),
+        ("appointments.update", "Update appointments"),
+        ("appointments.delete", "Delete appointments"),
+        ("offers.read", "View offer packages"),
+        ("offers.create", "Create offer packages"),
+        ("offers.update", "Update offer packages"),
+        ("offers.delete", "Delete offer packages")
     ];
 
     public static async Task SeedAsync(
@@ -101,47 +114,138 @@ public static class DatabaseSeeder
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var tenant = await dbContext.Tenants.FirstOrDefaultAsync(x => x.Slug == options.TenantSlug, cancellationToken);
+        var allPermissions = await dbContext.Permissions.AsNoTracking().ToListAsync(cancellationToken);
+
+        var adminEmail = options.AdminEmail.Trim().ToLowerInvariant();
+        var adminUser = await dbContext.Users.FirstOrDefaultAsync(x => x.Email == adminEmail, cancellationToken);
+
+        if (adminUser is null)
+        {
+            adminUser = new User
+            {
+                FirstName = options.AdminFirstName,
+                LastName = options.AdminLastName,
+                Email = adminEmail,
+                PasswordHash = passwordHasher.Hash(options.AdminPassword),
+                Status = "active"
+            };
+            dbContext.Users.Add(adminUser);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Seeded admin user {AdminEmail}", adminEmail);
+        }
+
+        var customers = new[]
+        {
+            new CustomerSeed(
+                "Aristo Psikolojik Danışmanlık",
+                "aristo-psikolojik-danismanlik",
+                "Danışan Süreci",
+                [
+                    ("İlk Başvuru", "#94a3b8", false, false),
+                    ("Ön Görüşme", "#60a5fa", false, false),
+                    ("Seans Planlandı", "#a78bfa", false, false),
+                    ("Aktif Danışan", "#22c55e", true, false),
+                    ("Pasif / Uygun Değil", "#ef4444", false, true)
+                ]),
+            new CustomerSeed(
+                "VegaLife Diyetisyenlik",
+                "vegalife-diyetisyenlik",
+                "Danışan Planı",
+                [
+                    ("Yeni Talep", "#94a3b8", false, false),
+                    ("Ön Değerlendirme", "#60a5fa", false, false),
+                    ("Plan Hazırlandı", "#a78bfa", false, false),
+                    ("Aktif Takip", "#22c55e", true, false),
+                    ("Donduruldu / Kaybedildi", "#ef4444", false, true)
+                ])
+        };
+
+        foreach (var customer in customers)
+        {
+            await SeedCustomerAsync(
+                dbContext,
+                adminUser.Id,
+                adminEmail,
+                allPermissions,
+                customer,
+                logger,
+                cancellationToken);
+        }
+    }
+
+    private static async Task SeedCustomerAsync(
+        IApplicationDbContext dbContext,
+        Guid adminUserId,
+        string adminEmail,
+        IReadOnlyCollection<Permission> allPermissions,
+        CustomerSeed customer,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await dbContext.Tenants.FirstOrDefaultAsync(x => x.Slug == customer.Slug, cancellationToken);
         if (tenant is null)
         {
             tenant = new Tenant
             {
-                Name = options.TenantName,
-                Slug = options.TenantSlug,
-                Email = options.AdminEmail,
+                Name = customer.Name,
+                Slug = customer.Slug,
+                Email = adminEmail,
                 Status = "active"
             };
             dbContext.Tenants.Add(tenant);
             await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Seeded tenant {TenantSlug}", options.TenantSlug);
+            logger.LogInformation("Seeded customer {TenantSlug}", customer.Slug);
         }
 
-        var settings = await dbContext.TenantSettings.FirstOrDefaultAsync(x => x.TenantId == tenant.Id, cancellationToken);
-        if (settings is null)
+        await EnsureTenantSettingsAsync(dbContext, tenant.Id, cancellationToken);
+        var adminRole = await EnsureAdminRoleAsync(dbContext, tenant.Id, allPermissions, cancellationToken);
+        await EnsureStaffRoleAsync(dbContext, tenant.Id, allPermissions, cancellationToken);
+        await EnsureUserTenantAsync(dbContext, adminUserId, tenant.Id, cancellationToken);
+        await EnsureUserRoleAsync(dbContext, adminUserId, adminRole.Id, cancellationToken);
+        await SeedDemoPipelineAsync(dbContext, tenant.Id, customer, cancellationToken);
+        await SeedDemoChannelsAsync(dbContext, tenant.Id, cancellationToken);
+        await SeedDemoOffersAsync(dbContext, tenant.Id, customer.Slug, cancellationToken);
+    }
+
+    private static async Task EnsureTenantSettingsAsync(
+        IApplicationDbContext dbContext,
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var settings = await dbContext.TenantSettings.FirstOrDefaultAsync(x => x.TenantId == tenantId, cancellationToken);
+        if (settings is not null)
         {
-            dbContext.TenantSettings.Add(new TenantSettings
-            {
-                TenantId = tenant.Id,
-                Theme = "light",
-                Language = "tr",
-                Currency = "TRY",
-                TimeZone = "UTC"
-            });
-            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
         }
 
+        dbContext.TenantSettings.Add(new TenantSettings
+        {
+            TenantId = tenantId,
+            Theme = "light",
+            Language = "tr",
+            Currency = "TRY",
+            TimeZone = "Europe/Istanbul"
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task<Role> EnsureAdminRoleAsync(
+        IApplicationDbContext dbContext,
+        Guid tenantId,
+        IReadOnlyCollection<Permission> allPermissions,
+        CancellationToken cancellationToken)
+    {
         var adminRole = await dbContext.Roles.FirstOrDefaultAsync(
-            x => x.TenantId == tenant.Id && x.Name == "Admin",
+            x => x.TenantId == tenantId && x.Name == "Admin",
             cancellationToken);
 
         if (adminRole is null)
         {
-            adminRole = new Role { TenantId = tenant.Id, Name = "Admin" };
+            adminRole = new Role { TenantId = tenantId, Name = "Admin" };
             dbContext.Roles.Add(adminRole);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var allPermissions = await dbContext.Permissions.AsNoTracking().ToListAsync(cancellationToken);
         var existingRolePermissions = await dbContext.RolePermissions
             .Where(x => x.RoleId == adminRole.Id)
             .Select(x => x.PermissionId)
@@ -157,44 +261,120 @@ public static class DatabaseSeeder
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        return adminRole;
+    }
 
-        var adminEmail = options.AdminEmail.Trim().ToLowerInvariant();
-        var adminUser = await dbContext.Users.FirstOrDefaultAsync(
-            x => x.TenantId == tenant.Id && x.Email == adminEmail,
+    private static readonly string[] StaffPermissionKeys =
+    [
+        "contacts.read", "contacts.create", "contacts.update", "contacts.delete",
+        "companies.read", "companies.create", "companies.update",
+        "users.read",
+        "roles.read",
+        "tags.read", "tags.create", "tags.update", "tags.delete",
+        "pipelines.read",
+        "deals.read", "deals.create", "deals.update", "deals.delete", "deals.move_stage",
+        "notes.read", "notes.create", "notes.update", "notes.delete",
+        "tasks.read", "tasks.create", "tasks.update", "tasks.delete",
+        "activities.read", "activities.create", "activities.update",
+        "appointments.read", "appointments.create", "appointments.update", "appointments.delete",
+        "offers.read", "offers.create", "offers.update",
+        "reports.read",
+        "channels.read", "channels.create", "channels.update",
+        "conversations.read", "conversations.create", "conversations.update",
+        "conversations.assign", "conversations.update_status", "conversations.mark_read",
+        "messages.read", "messages.send",
+        "custom_fields.read", "custom_fields.create", "custom_fields.update",
+        "notifications.read"
+    ];
+
+    private static async Task EnsureStaffRoleAsync(
+        IApplicationDbContext dbContext,
+        Guid tenantId,
+        IReadOnlyCollection<Permission> allPermissions,
+        CancellationToken cancellationToken)
+    {
+        var staffRole = await dbContext.Roles.FirstOrDefaultAsync(
+            x => x.TenantId == tenantId && x.Name == "Uzman",
             cancellationToken);
 
-        if (adminUser is null)
+        if (staffRole is null)
         {
-            adminUser = new User
+            staffRole = new Role { TenantId = tenantId, Name = "Uzman" };
+            dbContext.Roles.Add(staffRole);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var staffPermissionIds = allPermissions
+            .Where(p => StaffPermissionKeys.Contains(p.Key))
+            .Select(p => p.Id)
+            .ToHashSet();
+
+        var existingRolePermissions = await dbContext.RolePermissions
+            .Where(x => x.RoleId == staffRole.Id)
+            .Select(x => x.PermissionId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var permissionId in staffPermissionIds.Where(id => !existingRolePermissions.Contains(id)))
+        {
+            dbContext.RolePermissions.Add(new RolePermission
             {
-                TenantId = tenant.Id,
-                FirstName = options.AdminFirstName,
-                LastName = options.AdminLastName,
-                Email = adminEmail,
-                PasswordHash = passwordHasher.Hash(options.AdminPassword),
-                Status = "active"
-            };
-            dbContext.Users.Add(adminUser);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Seeded admin user {AdminEmail}", adminEmail);
+                RoleId = staffRole.Id,
+                PermissionId = permissionId
+            });
         }
 
-        var hasAdminRole = await dbContext.UserRoles.AnyAsync(
-            x => x.UserId == adminUser.Id && x.RoleId == adminRole.Id,
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureUserTenantAsync(
+        IApplicationDbContext dbContext,
+        Guid userId,
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var exists = await dbContext.UserTenants.AnyAsync(
+            x => x.UserId == userId && x.TenantId == tenantId,
             cancellationToken);
 
-        if (!hasAdminRole)
+        if (exists)
         {
-            dbContext.UserRoles.Add(new UserRole { UserId = adminUser.Id, RoleId = adminRole.Id });
-            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
         }
 
-        await SeedDemoPipelineAsync(dbContext, tenant.Id, cancellationToken);
+        var hasAnyTenant = await dbContext.UserTenants.AnyAsync(x => x.UserId == userId, cancellationToken);
+        dbContext.UserTenants.Add(new UserTenant
+        {
+            UserId = userId,
+            TenantId = tenantId,
+            Status = "active",
+            IsDefault = !hasAnyTenant
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureUserRoleAsync(
+        IApplicationDbContext dbContext,
+        Guid userId,
+        Guid roleId,
+        CancellationToken cancellationToken)
+    {
+        var hasAdminRole = await dbContext.UserRoles.AnyAsync(
+            x => x.UserId == userId && x.RoleId == roleId,
+            cancellationToken);
+
+        if (hasAdminRole)
+        {
+            return;
+        }
+
+        dbContext.UserRoles.Add(new UserRole { UserId = userId, RoleId = roleId });
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task SeedDemoPipelineAsync(
         IApplicationDbContext dbContext,
         Guid tenantId,
+        CustomerSeed customer,
         CancellationToken cancellationToken)
     {
         var pipelineExists = await dbContext.Pipelines.AnyAsync(x => x.TenantId == tenantId, cancellationToken);
@@ -203,20 +383,139 @@ public static class DatabaseSeeder
             return;
         }
 
-        var pipeline = new Pipeline { TenantId = tenantId, Name = "Sales Pipeline", Order = 1 };
+        var pipeline = new Pipeline { TenantId = tenantId, Name = customer.PipelineName, Order = 1 };
         dbContext.Pipelines.Add(pipeline);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var stages = new[]
+        var stages = customer.Stages.Select((stage, index) => new Stage
         {
-            new Stage { TenantId = tenantId, PipelineId = pipeline.Id, Name = "Lead", Order = 1, Color = "#94a3b8" },
-            new Stage { TenantId = tenantId, PipelineId = pipeline.Id, Name = "Qualified", Order = 2, Color = "#60a5fa" },
-            new Stage { TenantId = tenantId, PipelineId = pipeline.Id, Name = "Proposal", Order = 3, Color = "#a78bfa" },
-            new Stage { TenantId = tenantId, PipelineId = pipeline.Id, Name = "Won", Order = 4, Color = "#22c55e", IsWinStage = true },
-            new Stage { TenantId = tenantId, PipelineId = pipeline.Id, Name = "Lost", Order = 5, Color = "#ef4444", IsLostStage = true }
-        };
+            TenantId = tenantId,
+            PipelineId = pipeline.Id,
+            Name = stage.Name,
+            Order = index + 1,
+            Color = stage.Color,
+            IsWinStage = stage.IsWinStage,
+            IsLostStage = stage.IsLostStage
+        }).ToArray();
 
         dbContext.Stages.AddRange(stages);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    private static async Task SeedDemoChannelsAsync(
+        IApplicationDbContext dbContext,
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var channelDefs = new[]
+        {
+            ("whatsapp", "WhatsApp"),
+            ("internal", "Dahili Chat")
+        };
+
+        foreach (var (provider, name) in channelDefs)
+        {
+            var exists = await dbContext.Channels.AnyAsync(
+                x => x.TenantId == tenantId && x.Provider == provider,
+                cancellationToken);
+            if (exists)
+            {
+                continue;
+            }
+
+            dbContext.Channels.Add(new Channel
+            {
+                TenantId = tenantId,
+                Provider = provider,
+                Name = name,
+                IsActive = true
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedDemoOffersAsync(
+        IApplicationDbContext dbContext,
+        Guid tenantId,
+        string slug,
+        CancellationToken cancellationToken)
+    {
+        if (await dbContext.OfferPackages.AnyAsync(x => x.TenantId == tenantId, cancellationToken))
+        {
+            return;
+        }
+
+        var packages = slug.Contains("vegalife", StringComparison.OrdinalIgnoreCase)
+            ? new[]
+            {
+                new OfferPackage
+                {
+                    TenantId = tenantId,
+                    Name = "Başlangıç Beslenme Paketi",
+                    Description = "4 haftalık takip ve kişiselleştirilmiş plan",
+                    SessionCount = 4,
+                    DurationMinutes = 45,
+                    Price = 4500,
+                    Currency = "TRY",
+                    Status = "active"
+                },
+                new OfferPackage
+                {
+                    TenantId = tenantId,
+                    Name = "Yoğun Dönüşüm Paketi",
+                    Description = "8 seans + haftalık check-in",
+                    SessionCount = 8,
+                    DurationMinutes = 45,
+                    Price = 8000,
+                    Currency = "TRY",
+                    Status = "active"
+                }
+            }
+            : new[]
+            {
+                new OfferPackage
+                {
+                    TenantId = tenantId,
+                    Name = "4 Seans Paketi",
+                    Description = "Bireysel danışmanlık başlangıç paketi",
+                    SessionCount = 4,
+                    DurationMinutes = 50,
+                    Price = 6000,
+                    Currency = "TRY",
+                    Status = "active"
+                },
+                new OfferPackage
+                {
+                    TenantId = tenantId,
+                    Name = "8 Seans Paketi",
+                    Description = "Süreç odaklı devam paketi",
+                    SessionCount = 8,
+                    DurationMinutes = 50,
+                    Price = 11000,
+                    Currency = "TRY",
+                    Status = "active"
+                },
+                new OfferPackage
+                {
+                    TenantId = tenantId,
+                    Name = "Çift Terapisi Paketi",
+                    Description = "6 seans çift danışmanlığı",
+                    SessionCount = 6,
+                    DurationMinutes = 60,
+                    Price = 12000,
+                    Currency = "TRY",
+                    Status = "active"
+                }
+            };
+
+        dbContext.OfferPackages.AddRange(packages);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private sealed record CustomerSeed(
+        string Name,
+        string Slug,
+        string PipelineName,
+        IReadOnlyCollection<(string Name, string Color, bool IsWinStage, bool IsLostStage)> Stages);
 }

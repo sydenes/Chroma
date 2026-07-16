@@ -38,7 +38,7 @@ public class CompaniesController(ICompanyService companyService) : ControllerBas
             return BadRequest(ApiResponse.Fail("Name is required."));
 
         var company = await companyService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = company.Id }, ApiResponse<CompanyDto>.Ok(company));
+        return CreatedAtAction("GetById", new { id = company.Id }, ApiResponse<CompanyDto>.Ok(company));
     }
 
     [RequirePermission("companies.update")]

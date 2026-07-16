@@ -61,7 +61,7 @@ public class ContactChannelsController(IContactChannelService contactChannelServ
         };
 
         var channel = await contactChannelService.CreateAsync(createRequest, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { contactId, id = channel.Id }, ApiResponse<ContactChannelDto>.Ok(channel));
+        return CreatedAtAction("GetById", new { contactId, id = channel.Id }, ApiResponse<ContactChannelDto>.Ok(channel));
     }
 
     [RequirePermission("contact_channels.update")]

@@ -38,7 +38,7 @@ public class WorkflowsController(IWorkflowService workflowService) : ControllerB
             return BadRequest(ApiResponse.Fail("Name is required."));
 
         var workflow = await workflowService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = workflow.Id }, ApiResponse<WorkflowDto>.Ok(workflow));
+        return CreatedAtAction("GetById", new { id = workflow.Id }, ApiResponse<WorkflowDto>.Ok(workflow));
     }
 
     [RequirePermission("workflows.update")]

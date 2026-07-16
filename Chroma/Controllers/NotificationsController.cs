@@ -38,7 +38,7 @@ public class NotificationsController(INotificationService notificationService) :
             return BadRequest(ApiResponse.Fail("Title is required."));
 
         var notification = await notificationService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = notification.Id }, ApiResponse<NotificationDto>.Ok(notification));
+        return CreatedAtAction("GetById", new { id = notification.Id }, ApiResponse<NotificationDto>.Ok(notification));
     }
 
     [RequirePermission("notifications.mark_read")]

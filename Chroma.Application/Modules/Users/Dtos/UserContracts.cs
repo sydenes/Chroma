@@ -10,6 +10,7 @@ public sealed class UserDto
     public string? Phone { get; init; }
     public string Status { get; init; } = string.Empty;
     public IReadOnlyCollection<string> Roles { get; init; } = [];
+    public IReadOnlyCollection<Guid> RoleIds { get; init; } = [];
 }
 
 public sealed class UserSearchRequest

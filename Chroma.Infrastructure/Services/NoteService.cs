@@ -41,6 +41,8 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
             .Select(MapToDto())
             .ToListAsync(cancellationToken);
 
+        await PopulateNamesAsync(items, cancellationToken);
+
         return new NoteSearchResult { TotalCount = totalCount, Items = items };
     }
 
@@ -49,11 +51,18 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        return await dbContext.Notes
+        var note = await dbContext.Notes
             .AsNoTracking()
             .Where(x => x.Id == id && x.TenantId == tenantId)
             .Select(MapToDto())
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (note is not null)
+        {
+            await PopulateNamesAsync([note], cancellationToken);
+        }
+
+        return note;
     }
 
     public async Task<NoteDto> CreateAsync(CreateNoteRequest request, CancellationToken cancellationToken)
@@ -73,7 +82,9 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
         dbContext.Notes.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return ToDto(entity);
+        var dto = ToDto(entity);
+        await PopulateNamesAsync([dto], cancellationToken);
+        return dto;
     }
 
     public async Task<NoteDto?> UpdateAsync(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken)
@@ -91,7 +102,10 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToDto(entity);
+
+        var dto = ToDto(entity);
+        await PopulateNamesAsync([dto], cancellationToken);
+        return dto;
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
@@ -111,6 +125,66 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task PopulateNamesAsync(
+        IReadOnlyCollection<NoteDto> notes,
+        CancellationToken cancellationToken)
+    {
+        if (notes.Count == 0)
+        {
+            return;
+        }
+
+        var authorIds = notes
+            .Where(x => x.AuthorId.HasValue)
+            .Select(x => x.AuthorId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (authorIds.Length > 0)
+        {
+            var authors = await dbContext.Users
+                .AsNoTracking()
+                .Where(x => authorIds.Contains(x.Id))
+                .Select(x => new { x.Id, Name = x.FirstName + " " + x.LastName })
+                .ToListAsync(cancellationToken);
+
+            var authorNameById = authors.ToDictionary(x => x.Id, x => x.Name.Trim());
+
+            foreach (var note in notes)
+            {
+                if (note.AuthorId is Guid authorId && authorNameById.TryGetValue(authorId, out var name))
+                {
+                    note.AuthorName = name;
+                }
+            }
+        }
+
+        var contactIds = notes
+            .Where(x => x.OwnerType == "contact")
+            .Select(x => x.OwnerId)
+            .Distinct()
+            .ToArray();
+
+        if (contactIds.Length > 0)
+        {
+            var contacts = await dbContext.Contacts
+                .AsNoTracking()
+                .Where(x => contactIds.Contains(x.Id))
+                .Select(x => new { x.Id, Name = x.FirstName + " " + x.LastName })
+                .ToListAsync(cancellationToken);
+
+            var contactNameById = contacts.ToDictionary(x => x.Id, x => x.Name.Trim());
+
+            foreach (var note in notes.Where(x => x.OwnerType == "contact"))
+            {
+                if (contactNameById.TryGetValue(note.OwnerId, out var name))
+                {
+                    note.ContactName = name;
+                }
+            }
+        }
     }
 
     private static NoteDto ToDto(Note entity)

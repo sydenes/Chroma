@@ -12,6 +12,7 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
         entity.HasKey(x => x.Id);
 
         entity.Property(x => x.Direction).HasMaxLength(10).IsRequired();
+        entity.Property(x => x.SenderDisplayName).HasMaxLength(200);
         entity.Property(x => x.MessageType).HasMaxLength(40).IsRequired();
         entity.Property(x => x.ExternalId).HasMaxLength(255);
         entity.Property(x => x.MediaUrl).HasMaxLength(1000);
@@ -34,7 +35,13 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
             .HasForeignKey(x => x.ChannelId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        entity.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.SenderUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         entity.HasIndex(x => new { x.ConversationId, x.SentAtUtc });
+        entity.HasIndex(x => x.SenderUserId);
         entity.HasIndex(x => new { x.ChannelId, x.ExternalId })
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false AND \"ExternalId\" IS NOT NULL");

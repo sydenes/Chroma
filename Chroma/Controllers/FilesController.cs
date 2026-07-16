@@ -38,7 +38,7 @@ public class FilesController(IFileService fileService) : ControllerBase
             return BadRequest(ApiResponse.Fail("FileName and Url are required."));
 
         var file = await fileService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = file.Id }, ApiResponse<FileDto>.Ok(file));
+        return CreatedAtAction("GetById", new { id = file.Id }, ApiResponse<FileDto>.Ok(file));
     }
 
     [RequirePermission("files.update")]

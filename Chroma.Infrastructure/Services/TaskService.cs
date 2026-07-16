@@ -56,6 +56,8 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
             .Select(MapToDto())
             .ToListAsync(cancellationToken);
 
+        await PopulateNamesAsync(items, cancellationToken);
+
         return new CrmTaskSearchResult { TotalCount = totalCount, Items = items };
     }
 
@@ -64,11 +66,18 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        return await dbContext.CrmTasks
+        var task = await dbContext.CrmTasks
             .AsNoTracking()
             .Where(x => x.Id == id && x.TenantId == tenantId)
             .Select(MapToDto())
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (task is not null)
+        {
+            await PopulateNamesAsync([task], cancellationToken);
+        }
+
+        return task;
     }
 
     public async Task<CrmTaskDto> CreateAsync(CreateCrmTaskRequest request, CancellationToken cancellationToken)
@@ -92,7 +101,9 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
         dbContext.CrmTasks.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return ToDto(entity);
+        var dto = ToDto(entity);
+        await PopulateNamesAsync([dto], cancellationToken);
+        return dto;
     }
 
     public async Task<CrmTaskDto?> UpdateAsync(Guid id, UpdateCrmTaskRequest request, CancellationToken cancellationToken)
@@ -128,7 +139,10 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        return ToDto(entity);
+
+        var dto = ToDto(entity);
+        await PopulateNamesAsync([dto], cancellationToken);
+        return dto;
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
@@ -148,6 +162,66 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task PopulateNamesAsync(
+        IReadOnlyCollection<CrmTaskDto> tasks,
+        CancellationToken cancellationToken)
+    {
+        if (tasks.Count == 0)
+        {
+            return;
+        }
+
+        var contactIds = tasks
+            .Where(x => x.ContactId.HasValue)
+            .Select(x => x.ContactId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (contactIds.Length > 0)
+        {
+            var contacts = await dbContext.Contacts
+                .AsNoTracking()
+                .Where(x => contactIds.Contains(x.Id))
+                .Select(x => new { x.Id, Name = x.FirstName + " " + x.LastName })
+                .ToListAsync(cancellationToken);
+
+            var contactNameById = contacts.ToDictionary(x => x.Id, x => x.Name.Trim());
+
+            foreach (var task in tasks)
+            {
+                if (task.ContactId is Guid contactId && contactNameById.TryGetValue(contactId, out var name))
+                {
+                    task.ContactName = name;
+                }
+            }
+        }
+
+        var ownerIds = tasks
+            .Where(x => x.OwnerId.HasValue)
+            .Select(x => x.OwnerId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (ownerIds.Length > 0)
+        {
+            var owners = await dbContext.Users
+                .AsNoTracking()
+                .Where(x => ownerIds.Contains(x.Id))
+                .Select(x => new { x.Id, Name = x.FirstName + " " + x.LastName })
+                .ToListAsync(cancellationToken);
+
+            var ownerNameById = owners.ToDictionary(x => x.Id, x => x.Name.Trim());
+
+            foreach (var task in tasks)
+            {
+                if (task.OwnerId is Guid ownerId && ownerNameById.TryGetValue(ownerId, out var name))
+                {
+                    task.OwnerName = name;
+                }
+            }
+        }
     }
 
     private static CrmTaskDto ToDto(CrmTask entity)

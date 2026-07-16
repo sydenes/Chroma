@@ -34,8 +34,15 @@ public class ConversationsController(IConversationService conversationService) :
     [HttpPost]
     public async Task<IActionResult> CreateAsync(CreateConversationRequest request, CancellationToken cancellationToken)
     {
-        var conversation = await conversationService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = conversation.Id }, ApiResponse<ConversationDto>.Ok(conversation));
+        try
+        {
+            var conversation = await conversationService.CreateAsync(request, cancellationToken);
+            return CreatedAtAction("GetById", new { id = conversation.Id }, ApiResponse<ConversationDto>.Ok(conversation));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse.Fail(ex.Message));
+        }
     }
 
     [RequirePermission("conversations.update")]

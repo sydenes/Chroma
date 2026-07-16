@@ -38,7 +38,7 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
             return BadRequest(ApiResponse.Fail("Name is required."));
 
         var pipeline = await pipelineService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = pipeline.Id }, ApiResponse<PipelineDto>.Ok(pipeline));
+        return CreatedAtAction("GetById", new { id = pipeline.Id }, ApiResponse<PipelineDto>.Ok(pipeline));
     }
 
     [RequirePermission("pipelines.update")]

@@ -38,6 +38,6 @@ public class MessagesController(IMessageService messageService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Text or MediaUrl is required."));
 
         var message = await messageService.SendOutboundAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = message.Id }, ApiResponse<MessageDto>.Ok(message));
+        return CreatedAtAction("GetById", new { id = message.Id }, ApiResponse<MessageDto>.Ok(message));
     }
 }

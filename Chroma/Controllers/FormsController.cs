@@ -38,7 +38,7 @@ public class FormsController(IFormService formService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Name is required."));
 
         var form = await formService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = form.Id }, ApiResponse<FormDto>.Ok(form));
+        return CreatedAtAction("GetById", new { id = form.Id }, ApiResponse<FormDto>.Ok(form));
     }
 
     [RequirePermission("forms.update")]

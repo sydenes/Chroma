@@ -24,7 +24,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         entity.Property(x => x.UpdatedAtUtc).HasColumnType("timestamptz");
         entity.Property(x => x.DeletedAtUtc).HasColumnType("timestamptz");
 
-        entity.HasIndex(x => new { x.TenantId, x.Email }).IsUnique().HasFilter("\"IsDeleted\" = false");
+        entity.HasIndex(x => x.Email).IsUnique().HasFilter("\"IsDeleted\" = false");
         entity.HasQueryFilter(x => !x.IsDeleted);
     }
 }

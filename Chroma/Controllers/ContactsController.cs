@@ -38,7 +38,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
             return BadRequest(ApiResponse.Fail("FirstName is required."));
 
         var contact = await contactService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = contact.Id }, ApiResponse<ContactDto>.Ok(contact));
+        return CreatedAtAction("GetById", new { id = contact.Id }, ApiResponse<ContactDto>.Ok(contact));
     }
 
     [RequirePermission("contacts.update")]

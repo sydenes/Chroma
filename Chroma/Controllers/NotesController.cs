@@ -38,7 +38,7 @@ public class NotesController(INoteService noteService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Content is required."));
 
         var note = await noteService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = note.Id }, ApiResponse<NoteDto>.Ok(note));
+        return CreatedAtAction("GetById", new { id = note.Id }, ApiResponse<NoteDto>.Ok(note));
     }
 
     [RequirePermission("notes.update")]

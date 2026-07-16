@@ -8,6 +8,8 @@ public sealed class NoteDto
     public string OwnerType { get; init; } = string.Empty;
     public Guid OwnerId { get; init; }
     public string Content { get; init; } = string.Empty;
+    public string? ContactName { get; set; }
+    public string? AuthorName { get; set; }
 }
 
 public sealed class NoteSearchRequest

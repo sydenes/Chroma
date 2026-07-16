@@ -38,7 +38,7 @@ public class ChannelsController(IChannelService channelService) : ControllerBase
             return BadRequest(ApiResponse.Fail("Name and Provider are required."));
 
         var channel = await channelService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetByIdAsync), new { id = channel.Id }, ApiResponse<ChannelDto>.Ok(channel));
+        return CreatedAtAction("GetById", new { id = channel.Id }, ApiResponse<ChannelDto>.Ok(channel));
     }
 
     [RequirePermission("channels.update")]
