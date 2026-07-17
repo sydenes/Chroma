@@ -4,6 +4,7 @@ using Chroma.Application.Modules.Appointments.Services;
 using Chroma.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using System.Text;
 
 namespace Chroma.Infrastructure.Services;
 
@@ -46,14 +47,18 @@ public class AppointmentService(
 
         if (!string.IsNullOrWhiteSpace(request.Query))
         {
-            queryable = queryable.Where(x => x.Title.Contains(request.Query.Trim()));
+            var q = request.Query.Trim();
+            queryable = queryable.Where(x =>
+                x.Title.Contains(q)
+                || (x.SessionSummary != null && x.SessionSummary.Contains(q))
+                || (x.Notes != null && x.Notes.Contains(q)));
         }
 
         var totalCount = await queryable.CountAsync(cancellationToken);
         var skip = (request.Page - 1) * request.PageSize;
 
         var items = await queryable
-            .OrderBy(x => x.StartsAtUtc)
+            .OrderByDescending(x => x.StartsAtUtc)
             .Skip(skip)
             .Take(request.PageSize)
             .Select(MapToDto())
@@ -97,7 +102,12 @@ public class AppointmentService(
             Notes = Clean(request.Notes),
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = request.EndsAtUtc,
-            Mode = string.IsNullOrWhiteSpace(request.Mode) ? "office" : request.Mode.Trim().ToLowerInvariant()
+            Mode = NormalizeMode(request.Mode),
+            SessionType = NormalizeSessionType(request.SessionType),
+            SessionSummary = Clean(request.SessionSummary),
+            PrivateNotes = Clean(request.PrivateNotes),
+            NextSteps = Clean(request.NextSteps),
+            ProgressScore = NormalizeScore(request.ProgressScore)
         };
 
         dbContext.Appointments.Add(entity);
@@ -128,7 +138,12 @@ public class AppointmentService(
         entity.StartsAtUtc = request.StartsAtUtc;
         entity.EndsAtUtc = request.EndsAtUtc;
         entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim().ToLowerInvariant();
-        entity.Mode = string.IsNullOrWhiteSpace(request.Mode) ? entity.Mode : request.Mode.Trim().ToLowerInvariant();
+        entity.Mode = NormalizeMode(request.Mode);
+        entity.SessionType = NormalizeSessionType(request.SessionType);
+        entity.SessionSummary = Clean(request.SessionSummary);
+        entity.PrivateNotes = Clean(request.PrivateNotes);
+        entity.NextSteps = Clean(request.NextSteps);
+        entity.ProgressScore = NormalizeScore(request.ProgressScore);
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         if (previousStatus != "completed" && entity.Status == "completed")
@@ -144,7 +159,7 @@ public class AppointmentService(
                 ContactId = entity.ContactId,
                 ActivityType = "session",
                 Subject = entity.Title,
-                Description = entity.Notes,
+                Description = BuildActivityDescription(entity),
                 OccurredAtUtc = entity.StartsAtUtc,
                 DurationMinutes = duration
             });
@@ -238,6 +253,53 @@ public class AppointmentService(
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static string NormalizeMode(string? mode)
+        => string.IsNullOrWhiteSpace(mode) ? "office" : mode.Trim().ToLowerInvariant();
+
+    private static string NormalizeSessionType(string? sessionType)
+    {
+        var value = string.IsNullOrWhiteSpace(sessionType) ? "follow_up" : sessionType.Trim().ToLowerInvariant();
+        return value switch
+        {
+            "initial" or "follow_up" or "control" or "evaluation" or "other" => value,
+            _ => "follow_up"
+        };
+    }
+
+    private static int? NormalizeScore(int? score)
+    {
+        if (score is null) return null;
+        if (score < 1 || score > 5) return null;
+        return score;
+    }
+
+    private static string? BuildActivityDescription(Appointment entity)
+    {
+        var sb = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(entity.SessionSummary))
+        {
+            sb.Append(entity.SessionSummary.Trim());
+        }
+        else if (!string.IsNullOrWhiteSpace(entity.Notes))
+        {
+            sb.Append(entity.Notes.Trim());
+        }
+
+        if (entity.ProgressScore is int score)
+        {
+            if (sb.Length > 0) sb.Append(" · ");
+            sb.Append($"Progress: {score}/5");
+        }
+
+        if (!string.IsNullOrWhiteSpace(entity.NextSteps))
+        {
+            if (sb.Length > 0) sb.Append(" · ");
+            sb.Append($"Next: {entity.NextSteps.Trim()}");
+        }
+
+        return sb.Length == 0 ? null : sb.ToString();
+    }
+
     private static AppointmentDto ToDto(Appointment entity)
     {
         return new AppointmentDto
@@ -251,7 +313,12 @@ public class AppointmentService(
             StartsAtUtc = entity.StartsAtUtc,
             EndsAtUtc = entity.EndsAtUtc,
             Status = entity.Status,
-            Mode = entity.Mode
+            Mode = entity.Mode,
+            SessionType = entity.SessionType,
+            SessionSummary = entity.SessionSummary,
+            PrivateNotes = entity.PrivateNotes,
+            NextSteps = entity.NextSteps,
+            ProgressScore = entity.ProgressScore
         };
     }
 
@@ -268,7 +335,12 @@ public class AppointmentService(
             StartsAtUtc = x.StartsAtUtc,
             EndsAtUtc = x.EndsAtUtc,
             Status = x.Status,
-            Mode = x.Mode
+            Mode = x.Mode,
+            SessionType = x.SessionType,
+            SessionSummary = x.SessionSummary,
+            PrivateNotes = x.PrivateNotes,
+            NextSteps = x.NextSteps,
+            ProgressScore = x.ProgressScore
         };
     }
 }

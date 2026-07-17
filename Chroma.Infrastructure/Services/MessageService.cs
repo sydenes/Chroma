@@ -1,4 +1,5 @@
 using Chroma.Application.Abstractions;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Modules.Messages.Dtos;
 using Chroma.Application.Modules.Messages.Services;
 using Chroma.Domain.Entities;
@@ -36,6 +37,8 @@ public class MessageService(
             .Select(MapToDto())
             .ToListAsync(cancellationToken);
 
+        await PopulateFileMetadataAsync(items, cancellationToken);
+
         return new MessageSearchResult { TotalCount = totalCount, Items = items };
     }
 
@@ -44,11 +47,18 @@ public class MessageService(
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        return await dbContext.Messages
+        var message = await dbContext.Messages
             .AsNoTracking()
             .Where(x => x.Id == id && x.TenantId == tenantId)
             .Select(MapToDto())
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (message is not null)
+        {
+            await PopulateFileMetadataAsync([message], cancellationToken);
+        }
+
+        return message;
     }
 
     public async Task<MessageDto> SendOutboundAsync(SendOutboundMessageRequest request, CancellationToken cancellationToken)
@@ -73,6 +83,47 @@ public class MessageService(
             ? null
             : $"{sender.FirstName} {sender.LastName}".Trim();
 
+        string? text = string.IsNullOrWhiteSpace(request.Text) ? null : request.Text.Trim();
+        string? mediaUrl = string.IsNullOrWhiteSpace(request.MediaUrl) ? null : request.MediaUrl.Trim();
+        Guid? fileId = request.FileId;
+        var messageType = string.IsNullOrWhiteSpace(request.MessageType)
+            ? "text"
+            : request.MessageType.Trim().ToLowerInvariant();
+
+        StoredFile? file = null;
+        if (fileId.HasValue)
+        {
+            file = await dbContext.StoredFiles
+                .FirstOrDefaultAsync(x => x.Id == fileId.Value && x.TenantId == tenantId, cancellationToken)
+                ?? throw new AppException("messages.fileNotFound", "Attached file was not found.", 404);
+
+            mediaUrl ??= $"/api/files/{file.Id}/download";
+            text ??= file.FileName;
+            if (messageType is "text" or "")
+            {
+                messageType = file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+                    ? "image"
+                    : "file";
+            }
+
+            // Bind attachment to this conversation for ownership consistency.
+            if (!string.Equals(file.OwnerType, "conversation", StringComparison.OrdinalIgnoreCase)
+                || file.OwnerId != conversation.Id)
+            {
+                file.OwnerType = "conversation";
+                file.OwnerId = conversation.Id;
+                file.UpdatedAtUtc = DateTime.UtcNow;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(text) && string.IsNullOrWhiteSpace(mediaUrl) && !fileId.HasValue)
+        {
+            throw new AppException(
+                "messages.textOrMediaUrlRequired",
+                "Text or media URL is required.",
+                400);
+        }
+
         var entity = new Message
         {
             TenantId = tenantId,
@@ -81,9 +132,10 @@ public class MessageService(
             Direction = "OUT",
             SenderUserId = senderUserId,
             SenderDisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName,
-            MessageType = request.MessageType,
-            Text = request.Text,
-            MediaUrl = request.MediaUrl,
+            MessageType = messageType,
+            Text = text,
+            MediaUrl = mediaUrl,
+            FileId = fileId,
             Status = "sent",
             SentAtUtc = DateTime.UtcNow
         };
@@ -93,9 +145,66 @@ public class MessageService(
         conversation.LastMessageAtUtc = entity.SentAtUtc;
         conversation.UpdatedAtUtc = DateTime.UtcNow;
 
+        var recipients = await dbContext.ConversationParticipants
+            .Where(x =>
+                x.ConversationId == conversation.Id
+                && x.TenantId == tenantId
+                && x.UserId != null
+                && x.UserId != senderUserId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var recipient in recipients)
+        {
+            recipient.UnreadCount += 1;
+            recipient.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        // Legacy aggregate for non-participant UIs.
+        conversation.UnreadCount = recipients.Sum(x => x.UnreadCount);
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return ToDto(entity);
+        var dto = ToDto(entity);
+        if (file is not null)
+        {
+            dto.FileName = file.FileName;
+            dto.ContentType = file.ContentType;
+        }
+
+        return dto;
+    }
+
+    private async Task PopulateFileMetadataAsync(
+        IReadOnlyCollection<MessageDto> messages,
+        CancellationToken cancellationToken)
+    {
+        var fileIds = messages
+            .Where(x => x.FileId.HasValue)
+            .Select(x => x.FileId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (fileIds.Length == 0)
+        {
+            return;
+        }
+
+        var files = await dbContext.StoredFiles
+            .AsNoTracking()
+            .Where(x => fileIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.FileName, x.ContentType })
+            .ToListAsync(cancellationToken);
+
+        var byId = files.ToDictionary(x => x.Id);
+
+        foreach (var message in messages)
+        {
+            if (message.FileId is Guid id && byId.TryGetValue(id, out var file))
+            {
+                message.FileName = file.FileName;
+                message.ContentType = file.ContentType;
+            }
+        }
     }
 
     private static MessageDto ToDto(Message entity)
@@ -113,6 +222,7 @@ public class MessageService(
             ExternalId = entity.ExternalId,
             Text = entity.Text,
             MediaUrl = entity.MediaUrl,
+            FileId = entity.FileId,
             Status = entity.Status,
             SentAtUtc = entity.SentAtUtc,
             DeliveredAtUtc = entity.DeliveredAtUtc,
@@ -135,6 +245,7 @@ public class MessageService(
             ExternalId = x.ExternalId,
             Text = x.Text,
             MediaUrl = x.MediaUrl,
+            FileId = x.FileId,
             Status = x.Status,
             SentAtUtc = x.SentAtUtc,
             DeliveredAtUtc = x.DeliveredAtUtc,

@@ -26,7 +26,7 @@ public class TagsController(ITagService tagService) : ControllerBase
     {
         var tag = await tagService.GetByIdAsync(id, cancellationToken);
         return tag is null
-            ? NotFound(ApiResponse.Fail("Tag not found."))
+            ? NotFound(ApiResponse.Fail("tags.notFound", "Tag not found."))
             : Ok(ApiResponse<TagDto>.Ok(tag));
     }
 
@@ -35,7 +35,7 @@ public class TagsController(ITagService tagService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateTagRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("tags.nameRequired", "Name is required."));
 
         var tag = await tagService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = tag.Id }, ApiResponse<TagDto>.Ok(tag));
@@ -46,11 +46,11 @@ public class TagsController(ITagService tagService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateTagRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("tags.nameRequired", "Name is required."));
 
         var tag = await tagService.UpdateAsync(id, request, cancellationToken);
         return tag is null
-            ? NotFound(ApiResponse.Fail("Tag not found."))
+            ? NotFound(ApiResponse.Fail("tags.notFound", "Tag not found."))
             : Ok(ApiResponse<TagDto>.Ok(tag));
     }
 
@@ -60,7 +60,7 @@ public class TagsController(ITagService tagService) : ControllerBase
     {
         var deleted = await tagService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Tag deleted."))
-            : NotFound(ApiResponse.Fail("Tag not found."));
+            ? Ok(ApiResponse.Ok("tags.deleted", "Tag deleted."))
+            : NotFound(ApiResponse.Fail("tags.notFound", "Tag not found."));
     }
 }

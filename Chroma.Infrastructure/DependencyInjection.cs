@@ -78,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<IFormService, FormService>();
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IFileService, FileService>();
+        services.AddSingleton<IFileStorage, Chroma.Infrastructure.Storage.LocalFileStorage>();
         services.AddScoped<IWorkflowService, WorkflowService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IReportService, ReportService>();

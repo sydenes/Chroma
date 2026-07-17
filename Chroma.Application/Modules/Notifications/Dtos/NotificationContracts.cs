@@ -8,14 +8,17 @@ public sealed class NotificationDto
     public string Title { get; init; } = string.Empty;
     public string Body { get; init; } = string.Empty;
     public string NotificationType { get; init; } = "info";
+    public string? SourceType { get; init; }
+    public Guid? SourceId { get; init; }
     public bool IsRead { get; init; }
     public DateTime? ReadAtUtc { get; init; }
+    public DateTime CreatedAtUtc { get; init; }
 }
 
 public sealed class NotificationSearchRequest
 {
     public Guid TenantId { get; init; }
-    public Guid UserId { get; init; }
+    public Guid? UserId { get; init; }
     public bool? IsRead { get; init; }
     public string? NotificationType { get; init; }
     public int Page { get; init; } = 1;
@@ -35,6 +38,13 @@ public sealed class CreateNotificationRequest
     public string Title { get; init; } = string.Empty;
     public string Body { get; init; } = string.Empty;
     public string NotificationType { get; init; } = "info";
+    public string? SourceType { get; init; }
+    public Guid? SourceId { get; init; }
+}
+
+public sealed class NotificationUnreadCountResult
+{
+    public int UnreadCount { get; init; }
 }
 
 public sealed class MarkNotificationReadRequest

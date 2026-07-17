@@ -120,8 +120,25 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<string>("NextSteps")
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PrivateNotes")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ProgressScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SessionSummary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SessionType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<DateTime>("StartsAtUtc")
                         .HasColumnType("timestamptz");
@@ -504,6 +521,9 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsGroup")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("LastMessageAtUtc")
                         .HasColumnType("timestamptz");
 
@@ -514,6 +534,10 @@ namespace Chroma.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("UnreadCount")
                         .HasColumnType("integer");
@@ -570,6 +594,9 @@ namespace Chroma.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("UnreadCount")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("timestamptz");
@@ -1013,6 +1040,9 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<Guid?>("FileId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -1053,6 +1083,8 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamptz");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FileId");
 
                     b.HasIndex("SenderUserId");
 
@@ -1140,6 +1172,13 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ReadAtUtc")
                         .HasColumnType("timestamptz");
 
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -1159,6 +1198,10 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "CreatedAtUtc");
 
                     b.HasIndex("TenantId", "UserId", "IsRead");
+
+                    b.HasIndex("UserId", "SourceType", "SourceId")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false AND \"SourceType\" IS NOT NULL AND \"SourceId\" IS NOT NULL");
 
                     b.ToTable("notifications", (string)null);
                 });
@@ -1497,6 +1540,11 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -1527,12 +1575,20 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<string>("StorageProvider")
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
                     b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("UploadedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
@@ -1544,6 +1600,10 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(1000)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.HasIndex("TenantId", "Category");
 
                     b.HasIndex("TenantId", "OwnerType", "OwnerId");
 
@@ -1694,6 +1754,11 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("AccentColor")
                         .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
@@ -2219,6 +2284,11 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Chroma.Domain.Entities.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("FileId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Chroma.Domain.Entities.User", null)
                         .WithMany()

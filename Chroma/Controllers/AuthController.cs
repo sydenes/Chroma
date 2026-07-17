@@ -17,12 +17,16 @@ public class AuthController(IAuthService authService) : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return BadRequest(ApiResponse.Fail("Email and Password are required."));
+            return BadRequest(ApiResponse.Fail(
+                "auth.required",
+                "Email and password are required."));
         }
 
         var result = await authService.LoginAsync(request, cancellationToken);
         return result is null
-            ? Unauthorized(ApiResponse.Fail("Invalid tenant, email or password."))
+            ? Unauthorized(ApiResponse.Fail(
+                "auth.invalidCredentials",
+                "Invalid email, password, or workspace."))
             : Ok(ApiResponse<LoginResult>.Ok(result));
     }
 
@@ -32,12 +36,16 @@ public class AuthController(IAuthService authService) : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            return BadRequest(ApiResponse.Fail("RefreshToken is required."));
+            return BadRequest(ApiResponse.Fail(
+                "auth.refreshTokenRequired",
+                "Refresh token is required."));
         }
 
         var result = await authService.RefreshAsync(request, cancellationToken);
         return result is null
-            ? Unauthorized(ApiResponse.Fail("Invalid or expired refresh token."))
+            ? Unauthorized(ApiResponse.Fail(
+                "auth.invalidRefreshToken",
+                "The refresh token is invalid or expired."))
             : Ok(ApiResponse<LoginResult>.Ok(result));
     }
 

@@ -13,6 +13,7 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
 
         entity.Property(x => x.Status).HasMaxLength(40).IsRequired();
         entity.Property(x => x.ExternalConversationId).HasMaxLength(255);
+        entity.Property(x => x.Title).HasMaxLength(200);
         entity.Property(x => x.LastMessageAtUtc).HasColumnType("timestamptz");
 
         entity.Property(x => x.CreatedAtUtc).HasColumnType("timestamptz");

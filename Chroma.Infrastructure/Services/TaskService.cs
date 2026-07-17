@@ -7,7 +7,7 @@ using System.Linq.Expressions;
 
 namespace Chroma.Infrastructure.Services;
 
-public class TaskService(IApplicationDbContext dbContext, ICurrentTenant currentTenant) : ITaskService
+public class TaskService(IApplicationDbContext dbContext, ICurrentTenant currentTenant, ICurrentUser currentUser) : ITaskService
 {
     public async Task<CrmTaskSearchResult> SearchAsync(CrmTaskSearchRequest request, CancellationToken cancellationToken)
     {
@@ -85,10 +85,12 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
+        var ownerId = request.OwnerId ?? currentUser.UserId;
+
         var entity = new CrmTask
         {
             TenantId = tenantId,
-            OwnerId = request.OwnerId,
+            OwnerId = ownerId,
             ContactId = request.ContactId,
             CompanyId = request.CompanyId,
             DealId = request.DealId,

@@ -35,6 +35,9 @@ public class TenantService(
         }
 
         settings.Theme = request.Theme.Trim();
+        settings.AccentColor = string.IsNullOrWhiteSpace(request.AccentColor)
+            ? "violet"
+            : request.AccentColor.Trim().ToLowerInvariant();
         settings.Language = request.Language.Trim();
         settings.Currency = request.Currency.Trim();
         settings.TimeZone = request.TimeZone.Trim();
@@ -51,6 +54,7 @@ public class TenantService(
         {
             TenantId = settings.TenantId,
             Theme = settings.Theme,
+            AccentColor = settings.AccentColor,
             Language = settings.Language,
             Currency = settings.Currency,
             TimeZone = settings.TimeZone,

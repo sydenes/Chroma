@@ -10,4 +10,6 @@ public class ConversationParticipant : BaseEntity
     public Guid? ContactId { get; set; }
     public string? ExternalParticipantId { get; set; }
     public string Role { get; set; } = "member";
+    /// <summary>Unread messages for this participant (team/group chats).</summary>
+    public int UnreadCount { get; set; }
 }

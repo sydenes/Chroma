@@ -1,4 +1,6 @@
 using Chroma.Application.Common.Responses;
+using Chroma.Localization;
+using Chroma.Middleware;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -16,7 +18,14 @@ public sealed class RequirePermissionAttribute(string permission) : Attribute, I
 
         if (!context.HttpContext.User.HasClaim("permission", permission))
         {
-            context.Result = new ObjectResult(ApiResponse.Fail("You do not have permission to perform this action."))
+            const string fallback = "You do not have permission to perform this action.";
+            var localizer = context.HttpContext.RequestServices.GetRequiredService<IApiMessageLocalizer>();
+            var message = localizer.Localize(
+                "auth.forbidden",
+                fallback,
+                LanguageCodeMiddleware.GetLanguage(context.HttpContext));
+
+            context.Result = new ObjectResult(ApiResponse.Fail("auth.forbidden", message))
             {
                 StatusCode = StatusCodes.Status403Forbidden
             };

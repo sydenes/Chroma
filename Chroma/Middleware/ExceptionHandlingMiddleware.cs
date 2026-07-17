@@ -1,12 +1,15 @@
 using System.Text.Json;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Common.Responses;
+using Chroma.Localization;
 
 namespace Chroma.Middleware;
 
 public sealed class ExceptionHandlingMiddleware(
     RequestDelegate next,
     ILogger<ExceptionHandlingMiddleware> logger,
-    IHostEnvironment environment)
+    IHostEnvironment environment,
+    IApiMessageLocalizer localizer)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -24,14 +27,19 @@ public sealed class ExceptionHandlingMiddleware(
     {
         logger.LogError(exception, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
 
-        var (statusCode, message) = exception switch
+        var (statusCode, messageCode, fallbackMessage) = exception switch
         {
-            ArgumentException => (StatusCodes.Status400BadRequest, exception.Message),
-            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, exception.Message),
-            KeyNotFoundException => (StatusCodes.Status404NotFound, exception.Message),
-            InvalidOperationException => (StatusCodes.Status409Conflict, exception.Message),
-            NotSupportedException => (StatusCodes.Status400BadRequest, exception.Message),
+            AppException appException => (
+                appException.StatusCode,
+                appException.MessageCode,
+                appException.Message),
+            ArgumentException => (StatusCodes.Status400BadRequest, (string?)null, exception.Message),
+            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "auth.unauthorized", exception.Message),
+            KeyNotFoundException => (StatusCodes.Status404NotFound, "common.notFound", exception.Message),
+            InvalidOperationException => (StatusCodes.Status409Conflict, (string?)null, exception.Message),
+            NotSupportedException => (StatusCodes.Status400BadRequest, (string?)null, exception.Message),
             _ => (StatusCodes.Status500InternalServerError,
+                "common.unexpected",
                 environment.IsDevelopment() ? exception.Message : "An unexpected error occurred.")
         };
 
@@ -44,7 +52,13 @@ public sealed class ExceptionHandlingMiddleware(
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
 
-        var response = ApiResponse.Fail(message);
+        var message = localizer.Localize(
+            messageCode,
+            fallbackMessage,
+            LanguageCodeMiddleware.GetLanguage(context));
+        var response = messageCode is null
+            ? ApiResponse.Fail(message)
+            : ApiResponse.Fail(messageCode, message);
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase

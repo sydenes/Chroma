@@ -12,4 +12,7 @@ public class Conversation : BaseEntity
     public int UnreadCount { get; set; }
     public string? ExternalConversationId { get; set; }
     public DateTime? LastMessageAtUtc { get; set; }
+    /// <summary>Group chat display title (direct chats use peer name).</summary>
+    public string? Title { get; set; }
+    public bool IsGroup { get; set; }
 }

@@ -13,6 +13,9 @@ public sealed class MessageDto
     public string? ExternalId { get; init; }
     public string? Text { get; init; }
     public string? MediaUrl { get; init; }
+    public Guid? FileId { get; init; }
+    public string? FileName { get; set; }
+    public string? ContentType { get; set; }
     public string Status { get; init; } = "sent";
     public DateTime SentAtUtc { get; init; }
     public DateTime? DeliveredAtUtc { get; init; }
@@ -42,4 +45,5 @@ public sealed class SendOutboundMessageRequest
     public string MessageType { get; init; } = "text";
     public string? Text { get; init; }
     public string? MediaUrl { get; init; }
+    public Guid? FileId { get; init; }
 }

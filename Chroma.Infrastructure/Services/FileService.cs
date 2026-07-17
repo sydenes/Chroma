@@ -1,8 +1,8 @@
 using Chroma.Application.Abstractions;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Modules.Files.Dtos;
 using Chroma.Application.Modules.Files.Services;
 using Chroma.Domain.Entities;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -11,10 +11,30 @@ namespace Chroma.Infrastructure.Services;
 public class FileService(
     IApplicationDbContext dbContext,
     ICurrentTenant currentTenant,
-    IWebHostEnvironment webHostEnvironment) : IFileService
+    ICurrentUser currentUser,
+    IFileStorage fileStorage) : IFileService
 {
     private const string LocalProvider = "local";
-    private const string UploadsFolder = "uploads";
+    private const long MaxUploadBytes = 20 * 1024 * 1024;
+
+    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain"
+    };
+
+    private static readonly HashSet<string> AllowedCategories = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "photo", "document", "lab", "consent", "invoice", "avatar", "other"
+    };
 
     public async Task<FileSearchResult> SearchAsync(FileSearchRequest request, CancellationToken cancellationToken)
     {
@@ -31,6 +51,11 @@ public class FileService(
         if (request.OwnerId.HasValue)
         {
             queryable = queryable.Where(x => x.OwnerId == request.OwnerId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Category))
+        {
+            queryable = queryable.Where(x => x.Category == request.Category.Trim().ToLowerInvariant());
         }
 
         if (!string.IsNullOrWhiteSpace(request.Query))
@@ -63,42 +88,78 @@ public class FileService(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<FileDto> UploadAsync(UploadFileRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        ValidateUpload(request);
+
+        var fileId = Guid.NewGuid();
+        var safeName = SanitizeFileName(request.FileName);
+        var extension = Path.GetExtension(safeName);
+        var category = NormalizeCategory(request.Category, request.ContentType);
+        var storageKey =
+            $"uploads/{tenantId:D}/{request.OwnerType.Trim().ToLowerInvariant()}/{request.OwnerId:D}/{fileId:D}{extension}";
+
+        await fileStorage.SaveAsync(storageKey, request.Content, cancellationToken);
+
+        var entity = new StoredFile
+        {
+            Id = fileId,
+            TenantId = tenantId,
+            OwnerType = request.OwnerType.Trim().ToLowerInvariant(),
+            OwnerId = request.OwnerId,
+            FileName = safeName,
+            ContentType = request.ContentType.Trim(),
+            SizeBytes = request.SizeBytes,
+            Category = category,
+            StorageProvider = LocalProvider,
+            StorageKey = storageKey,
+            Url = $"/api/files/{fileId:D}/download",
+            UploadedByUserId = currentUser.UserId
+        };
+
+        dbContext.StoredFiles.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToDto(entity);
+    }
+
     public async Task<FileDto> CreateAsync(CreateFileRequest request, CancellationToken cancellationToken)
     {
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var url = request.Url;
-        var storageProvider = string.IsNullOrWhiteSpace(request.StorageProvider) ? LocalProvider : request.StorageProvider.Trim().ToLowerInvariant();
-
-        if (storageProvider == LocalProvider)
+        if (string.IsNullOrWhiteSpace(request.FileName) || string.IsNullOrWhiteSpace(request.OwnerType))
         {
-            var tenantUploadPath = Path.Combine(webHostEnvironment.WebRootPath, UploadsFolder, tenantId.ToString());
-            Directory.CreateDirectory(tenantUploadPath);
-
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                url = $"/{UploadsFolder}/{tenantId}/{request.FileName.Trim()}";
-            }
-            else if (!url.StartsWith('/'))
-            {
-                url = $"/{UploadsFolder}/{tenantId}/{url.TrimStart('/')}";
-            }
+            throw new AppException(
+                "files.fileNameAndOwnerRequired",
+                "File name and owner are required.",
+                400);
         }
 
         var entity = new StoredFile
         {
             TenantId = tenantId,
-            OwnerType = request.OwnerType.Trim(),
+            OwnerType = request.OwnerType.Trim().ToLowerInvariant(),
             OwnerId = request.OwnerId,
-            FileName = request.FileName.Trim(),
-            ContentType = request.ContentType,
+            FileName = SanitizeFileName(request.FileName),
+            ContentType = string.IsNullOrWhiteSpace(request.ContentType) ? "application/octet-stream" : request.ContentType.Trim(),
             SizeBytes = request.SizeBytes,
-            StorageProvider = storageProvider,
-            Url = url
+            Category = NormalizeCategory(request.Category, request.ContentType),
+            StorageProvider = string.IsNullOrWhiteSpace(request.StorageProvider)
+                ? LocalProvider
+                : request.StorageProvider.Trim().ToLowerInvariant(),
+            StorageKey = request.Url.Trim(),
+            Url = request.Url.Trim(),
+            UploadedByUserId = currentUser.UserId
         };
 
         dbContext.StoredFiles.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        entity.Url = $"/api/files/{entity.Id:D}/download";
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToDto(entity);
@@ -115,13 +176,49 @@ public class FileService(
             return null;
         }
 
-        entity.FileName = request.FileName.Trim();
-        entity.OwnerType = request.OwnerType.Trim();
+        entity.FileName = SanitizeFileName(request.FileName);
+        entity.OwnerType = request.OwnerType.Trim().ToLowerInvariant();
         entity.OwnerId = request.OwnerId;
+        if (!string.IsNullOrWhiteSpace(request.Category))
+        {
+            entity.Category = NormalizeCategory(request.Category, entity.ContentType);
+        }
+
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToDto(entity);
+    }
+
+    public async Task<FileDownloadResult?> OpenDownloadAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var entity = await dbContext.StoredFiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var key = !string.IsNullOrWhiteSpace(entity.StorageKey) ? entity.StorageKey : entity.Url.TrimStart('/');
+        var stream = await fileStorage.OpenReadAsync(key, cancellationToken);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        return new FileDownloadResult
+        {
+            Stream = stream,
+            FileName = entity.FileName,
+            ContentType = string.IsNullOrWhiteSpace(entity.ContentType)
+                ? "application/octet-stream"
+                : entity.ContentType
+        };
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
@@ -135,14 +232,16 @@ public class FileService(
             return false;
         }
 
-        if (entity.StorageProvider == LocalProvider && !string.IsNullOrWhiteSpace(entity.Url))
+        var key = !string.IsNullOrWhiteSpace(entity.StorageKey) ? entity.StorageKey : entity.Url.TrimStart('/');
+        if (!string.IsNullOrWhiteSpace(key))
         {
-            var relativePath = entity.Url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-            var physicalPath = Path.Combine(webHostEnvironment.WebRootPath, relativePath);
-
-            if (File.Exists(physicalPath))
+            try
             {
-                File.Delete(physicalPath);
+                await fileStorage.DeleteAsync(key, cancellationToken);
+            }
+            catch
+            {
+                // Soft-delete metadata even if physical delete fails.
             }
         }
 
@@ -152,6 +251,66 @@ public class FileService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private static void ValidateUpload(UploadFileRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.OwnerType) || request.OwnerId == Guid.Empty)
+        {
+            throw new AppException(
+                "files.ownerRequired",
+                "Owner type and owner id are required.",
+                400);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FileName) || request.SizeBytes <= 0)
+        {
+            throw new AppException(
+                "files.fileRequired",
+                "A valid file is required.",
+                400);
+        }
+
+        if (request.SizeBytes > MaxUploadBytes)
+        {
+            throw new AppException(
+                "files.tooLarge",
+                "File exceeds the 20 MB size limit.",
+                400);
+        }
+
+        var contentType = request.ContentType?.Trim() ?? string.Empty;
+        if (!AllowedContentTypes.Contains(contentType))
+        {
+            throw new AppException(
+                "files.contentTypeNotAllowed",
+                "This file type is not allowed.",
+                400);
+        }
+    }
+
+    private static string NormalizeCategory(string? category, string? contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var normalized = category.Trim().ToLowerInvariant();
+            return AllowedCategories.Contains(normalized) ? normalized : "other";
+        }
+
+        return contentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true
+            ? "photo"
+            : "document";
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var name = Path.GetFileName(fileName.Trim());
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(invalid, '_');
+        }
+
+        return string.IsNullOrWhiteSpace(name) ? "file" : name;
     }
 
     private static FileDto ToDto(StoredFile entity)
@@ -165,8 +324,12 @@ public class FileService(
             FileName = entity.FileName,
             ContentType = entity.ContentType,
             SizeBytes = entity.SizeBytes,
+            Category = entity.Category,
             StorageProvider = entity.StorageProvider,
-            Url = entity.Url
+            StorageKey = entity.StorageKey,
+            Url = entity.Url,
+            UploadedByUserId = entity.UploadedByUserId,
+            CreatedAtUtc = entity.CreatedAtUtc
         };
     }
 
@@ -181,8 +344,12 @@ public class FileService(
             FileName = x.FileName,
             ContentType = x.ContentType,
             SizeBytes = x.SizeBytes,
+            Category = x.Category,
             StorageProvider = x.StorageProvider,
-            Url = x.Url
+            StorageKey = x.StorageKey,
+            Url = x.Url,
+            UploadedByUserId = x.UploadedByUserId,
+            CreatedAtUtc = x.CreatedAtUtc
         };
     }
 }

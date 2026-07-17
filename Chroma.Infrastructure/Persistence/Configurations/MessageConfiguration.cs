@@ -40,8 +40,14 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
             .HasForeignKey(x => x.SenderUserId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        entity.HasOne<StoredFile>()
+            .WithMany()
+            .HasForeignKey(x => x.FileId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         entity.HasIndex(x => new { x.ConversationId, x.SentAtUtc });
         entity.HasIndex(x => x.SenderUserId);
+        entity.HasIndex(x => x.FileId);
         entity.HasIndex(x => new { x.ChannelId, x.ExternalId })
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false AND \"ExternalId\" IS NOT NULL");

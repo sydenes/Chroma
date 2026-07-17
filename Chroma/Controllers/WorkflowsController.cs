@@ -26,7 +26,7 @@ public class WorkflowsController(IWorkflowService workflowService) : ControllerB
     {
         var workflow = await workflowService.GetByIdAsync(id, cancellationToken);
         return workflow is null
-            ? NotFound(ApiResponse.Fail("Workflow not found."))
+            ? NotFound(ApiResponse.Fail("workflows.notFound", "Workflow not found."))
             : Ok(ApiResponse<WorkflowDto>.Ok(workflow));
     }
 
@@ -35,7 +35,7 @@ public class WorkflowsController(IWorkflowService workflowService) : ControllerB
     public async Task<IActionResult> CreateAsync(CreateWorkflowRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("workflows.nameRequired", "Name is required."));
 
         var workflow = await workflowService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = workflow.Id }, ApiResponse<WorkflowDto>.Ok(workflow));
@@ -46,11 +46,11 @@ public class WorkflowsController(IWorkflowService workflowService) : ControllerB
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateWorkflowRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("workflows.nameRequired", "Name is required."));
 
         var workflow = await workflowService.UpdateAsync(id, request, cancellationToken);
         return workflow is null
-            ? NotFound(ApiResponse.Fail("Workflow not found."))
+            ? NotFound(ApiResponse.Fail("workflows.notFound", "Workflow not found."))
             : Ok(ApiResponse<WorkflowDto>.Ok(workflow));
     }
 
@@ -60,7 +60,7 @@ public class WorkflowsController(IWorkflowService workflowService) : ControllerB
     {
         var deleted = await workflowService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Workflow deleted."))
-            : NotFound(ApiResponse.Fail("Workflow not found."));
+            ? Ok(ApiResponse.Ok("workflows.deleted", "Workflow deleted."))
+            : NotFound(ApiResponse.Fail("workflows.notFound", "Workflow not found."));
     }
 }

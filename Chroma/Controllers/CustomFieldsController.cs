@@ -25,7 +25,7 @@ public class CustomFieldsController(ICustomFieldService customFieldService) : Co
     public async Task<IActionResult> GetValuesAsync([FromQuery] GetCustomFieldValuesRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.EntityType))
-            return BadRequest(ApiResponse.Fail("EntityType is required."));
+            return BadRequest(ApiResponse.Fail("customFields.entityTypeRequired", "Entity type is required."));
 
         var values = await customFieldService.GetValuesAsync(request, cancellationToken);
         return Ok(ApiResponse<object>.Ok(values));
@@ -37,7 +37,7 @@ public class CustomFieldsController(ICustomFieldService customFieldService) : Co
     {
         var field = await customFieldService.GetByIdAsync(id, cancellationToken);
         return field is null
-            ? NotFound(ApiResponse.Fail("Custom field not found."))
+            ? NotFound(ApiResponse.Fail("customFields.notFound", "Custom field not found."))
             : Ok(ApiResponse<CustomFieldDto>.Ok(field));
     }
 
@@ -46,7 +46,7 @@ public class CustomFieldsController(ICustomFieldService customFieldService) : Co
     public async Task<IActionResult> CreateAsync(CreateCustomFieldRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.EntityType))
-            return BadRequest(ApiResponse.Fail("Name and EntityType are required."));
+            return BadRequest(ApiResponse.Fail("customFields.nameAndEntityTypeRequired", "Name and entity type are required."));
 
         var field = await customFieldService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = field.Id }, ApiResponse<CustomFieldDto>.Ok(field));
@@ -65,11 +65,11 @@ public class CustomFieldsController(ICustomFieldService customFieldService) : Co
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateCustomFieldRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("customFields.nameRequired", "Name is required."));
 
         var field = await customFieldService.UpdateAsync(id, request, cancellationToken);
         return field is null
-            ? NotFound(ApiResponse.Fail("Custom field not found."))
+            ? NotFound(ApiResponse.Fail("customFields.notFound", "Custom field not found."))
             : Ok(ApiResponse<CustomFieldDto>.Ok(field));
     }
 
@@ -79,7 +79,7 @@ public class CustomFieldsController(ICustomFieldService customFieldService) : Co
     {
         var deleted = await customFieldService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Custom field deleted."))
-            : NotFound(ApiResponse.Fail("Custom field not found."));
+            ? Ok(ApiResponse.Ok("customFields.deleted", "Custom field deleted."))
+            : NotFound(ApiResponse.Fail("customFields.notFound", "Custom field not found."));
     }
 }

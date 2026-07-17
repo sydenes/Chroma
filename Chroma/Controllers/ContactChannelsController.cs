@@ -37,7 +37,7 @@ public class ContactChannelsController(IContactChannelService contactChannelServ
     {
         var channel = await contactChannelService.GetByIdAsync(contactId, id, cancellationToken);
         return channel is null
-            ? NotFound(ApiResponse.Fail("Contact channel not found."))
+            ? NotFound(ApiResponse.Fail("contactChannels.notFound", "Contact channel not found."))
             : Ok(ApiResponse<ContactChannelDto>.Ok(channel));
     }
 
@@ -49,7 +49,7 @@ public class ContactChannelsController(IContactChannelService contactChannelServ
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.ChannelType) || string.IsNullOrWhiteSpace(request.Value))
-            return BadRequest(ApiResponse.Fail("ChannelType and Value are required."));
+            return BadRequest(ApiResponse.Fail("contactChannels.channelTypeAndValueRequired", "Channel type and value are required."));
 
         var createRequest = new CreateContactChannelRequest
         {
@@ -73,11 +73,11 @@ public class ContactChannelsController(IContactChannelService contactChannelServ
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.ChannelType) || string.IsNullOrWhiteSpace(request.Value))
-            return BadRequest(ApiResponse.Fail("ChannelType and Value are required."));
+            return BadRequest(ApiResponse.Fail("contactChannels.channelTypeAndValueRequired", "Channel type and value are required."));
 
         var channel = await contactChannelService.UpdateAsync(contactId, id, request, cancellationToken);
         return channel is null
-            ? NotFound(ApiResponse.Fail("Contact channel not found."))
+            ? NotFound(ApiResponse.Fail("contactChannels.notFound", "Contact channel not found."))
             : Ok(ApiResponse<ContactChannelDto>.Ok(channel));
     }
 
@@ -87,7 +87,7 @@ public class ContactChannelsController(IContactChannelService contactChannelServ
     {
         var deleted = await contactChannelService.DeleteAsync(contactId, id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Contact channel deleted."))
-            : NotFound(ApiResponse.Fail("Contact channel not found."));
+            ? Ok(ApiResponse.Ok("contactChannels.deleted", "Contact channel deleted."))
+            : NotFound(ApiResponse.Fail("contactChannels.notFound", "Contact channel not found."));
     }
 }

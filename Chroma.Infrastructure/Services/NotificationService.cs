@@ -7,16 +7,22 @@ using System.Linq.Expressions;
 
 namespace Chroma.Infrastructure.Services;
 
-public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant currentTenant) : INotificationService
+public class NotificationService(
+    IApplicationDbContext dbContext,
+    ICurrentTenant currentTenant,
+    ICurrentUser currentUser) : INotificationService
 {
     public async Task<NotificationSearchResult> SearchAsync(NotificationSearchRequest request, CancellationToken cancellationToken)
     {
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
+        var userId = request.UserId ?? currentUser.UserId
+            ?? throw new InvalidOperationException("User context is required.");
+
         var queryable = dbContext.Notifications
             .AsNoTracking()
-            .Where(x => x.TenantId == tenantId && x.UserId == request.UserId);
+            .Where(x => x.TenantId == tenantId && x.UserId == userId);
 
         if (request.IsRead.HasValue)
         {
@@ -39,6 +45,21 @@ public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant
             .ToListAsync(cancellationToken);
 
         return new NotificationSearchResult { TotalCount = totalCount, Items = items };
+    }
+
+    public async Task<NotificationUnreadCountResult> GetUnreadCountAsync(CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var userId = currentUser.UserId
+            ?? throw new InvalidOperationException("User context is required.");
+
+        var unreadCount = await dbContext.Notifications
+            .AsNoTracking()
+            .CountAsync(x => x.TenantId == tenantId && x.UserId == userId && !x.IsRead, cancellationToken);
+
+        return new NotificationUnreadCountResult { UnreadCount = unreadCount };
     }
 
     public async Task<NotificationDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -64,7 +85,9 @@ public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant
             UserId = request.UserId,
             Title = request.Title.Trim(),
             Body = request.Body.Trim(),
-            NotificationType = request.NotificationType
+            NotificationType = request.NotificationType,
+            SourceType = string.IsNullOrWhiteSpace(request.SourceType) ? null : request.SourceType.Trim(),
+            SourceId = request.SourceId
         };
 
         dbContext.Notifications.Add(entity);
@@ -78,7 +101,13 @@ public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var entity = await dbContext.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+        var userId = currentUser.UserId
+            ?? throw new InvalidOperationException("User context is required.");
+
+        var entity = await dbContext.Notifications.FirstOrDefaultAsync(
+            x => x.Id == id && x.TenantId == tenantId && x.UserId == userId,
+            cancellationToken);
+
         if (entity is null)
         {
             return null;
@@ -92,12 +121,47 @@ public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant
         return ToDto(entity);
     }
 
+    public async Task<int> MarkAllAsReadAsync(CancellationToken cancellationToken)
+    {
+        var tenantId = currentTenant.TenantId
+            ?? throw new InvalidOperationException("Tenant context is required.");
+
+        var userId = currentUser.UserId
+            ?? throw new InvalidOperationException("User context is required.");
+
+        var unread = await dbContext.Notifications
+            .Where(x => x.TenantId == tenantId && x.UserId == userId && !x.IsRead)
+            .ToListAsync(cancellationToken);
+
+        if (unread.Count == 0)
+        {
+            return 0;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var notification in unread)
+        {
+            notification.IsRead = true;
+            notification.ReadAtUtc = now;
+            notification.UpdatedAtUtc = now;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return unread.Count;
+    }
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var entity = await dbContext.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId, cancellationToken);
+        var userId = currentUser.UserId
+            ?? throw new InvalidOperationException("User context is required.");
+
+        var entity = await dbContext.Notifications.FirstOrDefaultAsync(
+            x => x.Id == id && x.TenantId == tenantId && x.UserId == userId,
+            cancellationToken);
+
         if (entity is null)
         {
             return false;
@@ -121,8 +185,11 @@ public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant
             Title = entity.Title,
             Body = entity.Body,
             NotificationType = entity.NotificationType,
+            SourceType = entity.SourceType,
+            SourceId = entity.SourceId,
             IsRead = entity.IsRead,
-            ReadAtUtc = entity.ReadAtUtc
+            ReadAtUtc = entity.ReadAtUtc,
+            CreatedAtUtc = entity.CreatedAtUtc
         };
     }
 
@@ -136,8 +203,11 @@ public class NotificationService(IApplicationDbContext dbContext, ICurrentTenant
             Title = x.Title,
             Body = x.Body,
             NotificationType = x.NotificationType,
+            SourceType = x.SourceType,
+            SourceId = x.SourceId,
             IsRead = x.IsRead,
-            ReadAtUtc = x.ReadAtUtc
+            ReadAtUtc = x.ReadAtUtc,
+            CreatedAtUtc = x.CreatedAtUtc
         };
     }
 }

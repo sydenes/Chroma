@@ -1,4 +1,5 @@
 using Chroma.Application.Abstractions;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Modules.Contacts.Dtos;
 using Chroma.Application.Modules.Contacts.Services;
 using Chroma.Domain.Entities;
@@ -197,7 +198,9 @@ public class ContactService(
 
         if (!isMember)
         {
-            throw new InvalidOperationException("Seçilen kullanıcı bu müşteriye atanamaz.");
+            throw new AppException(
+                "contacts.assigneeInvalid",
+                "The selected user cannot be assigned to this contact.");
         }
 
         return ownerId;
@@ -354,8 +357,10 @@ public class ContactService(
             return;
         }
 
-        var label = channelType == "email" ? "E-posta" : "Telefon";
-        throw new InvalidOperationException($"{label} başka bir potansiyel kaydında kullanılıyor.");
+        var label = channelType == "email" ? "Email" : "Phone";
+        throw new AppException(
+            "contacts.channelAlreadyUsed",
+            $"{label} is already in use on another lead.");
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

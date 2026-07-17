@@ -14,6 +14,8 @@ public class WebhooksController : ControllerBase
     {
         // Skeleton: provider-specific webhook handling will be implemented via integration adapters.
         _ = cancellationToken;
-        return Task.FromResult<IActionResult>(Ok(ApiResponse.Ok($"Webhook received for provider '{provider}'.")));
+        return Task.FromResult<IActionResult>(Ok(ApiResponse.Ok(
+            "webhooks.received",
+            $"Webhook received for provider '{provider}'.")));
     }
 }

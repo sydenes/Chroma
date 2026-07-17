@@ -26,7 +26,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
     {
         var task = await taskService.GetByIdAsync(id, cancellationToken);
         return task is null
-            ? NotFound(ApiResponse.Fail("Task not found."))
+            ? NotFound(ApiResponse.Fail("tasks.notFound", "Task not found."))
             : Ok(ApiResponse<CrmTaskDto>.Ok(task));
     }
 
@@ -35,7 +35,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateCrmTaskRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(ApiResponse.Fail("Title is required."));
+            return BadRequest(ApiResponse.Fail("tasks.titleRequired", "Title is required."));
 
         var task = await taskService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = task.Id }, ApiResponse<CrmTaskDto>.Ok(task));
@@ -46,11 +46,11 @@ public class TasksController(ITaskService taskService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateCrmTaskRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(ApiResponse.Fail("Title is required."));
+            return BadRequest(ApiResponse.Fail("tasks.titleRequired", "Title is required."));
 
         var task = await taskService.UpdateAsync(id, request, cancellationToken);
         return task is null
-            ? NotFound(ApiResponse.Fail("Task not found."))
+            ? NotFound(ApiResponse.Fail("tasks.notFound", "Task not found."))
             : Ok(ApiResponse<CrmTaskDto>.Ok(task));
     }
 
@@ -60,7 +60,7 @@ public class TasksController(ITaskService taskService) : ControllerBase
     {
         var deleted = await taskService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Task deleted."))
-            : NotFound(ApiResponse.Fail("Task not found."));
+            ? Ok(ApiResponse.Ok("tasks.deleted", "Task deleted."))
+            : NotFound(ApiResponse.Fail("tasks.notFound", "Task not found."));
     }
 }

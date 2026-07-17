@@ -18,7 +18,7 @@ public class TenantController(ITenantService tenantService) : ControllerBase
     {
         var settings = await tenantService.GetSettingsAsync(cancellationToken);
         return settings is null
-            ? NotFound(ApiResponse.Fail("Tenant settings not found."))
+            ? NotFound(ApiResponse.Fail("tenant.settingsNotFound", "Tenant settings not found."))
             : Ok(ApiResponse<TenantSettingsDto>.Ok(settings));
     }
 
@@ -28,7 +28,7 @@ public class TenantController(ITenantService tenantService) : ControllerBase
     {
         var settings = await tenantService.UpdateSettingsAsync(request, cancellationToken);
         return settings is null
-            ? NotFound(ApiResponse.Fail("Tenant settings not found."))
+            ? NotFound(ApiResponse.Fail("tenant.settingsNotFound", "Tenant settings not found."))
             : Ok(ApiResponse<TenantSettingsDto>.Ok(settings));
     }
 }

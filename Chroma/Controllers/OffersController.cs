@@ -26,7 +26,7 @@ public class OffersController(IOfferService offerService) : ControllerBase
     {
         var offer = await offerService.GetByIdAsync(id, cancellationToken);
         return offer is null
-            ? NotFound(ApiResponse.Fail("Teklif paketi bulunamadı."))
+            ? NotFound(ApiResponse.Fail("offers.notFound", "Offer package not found."))
             : Ok(ApiResponse<OfferPackageDto>.Ok(offer));
     }
 
@@ -35,13 +35,13 @@ public class OffersController(IOfferService offerService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateOfferPackageRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("İsim zorunludur."));
+            return BadRequest(ApiResponse.Fail("offers.nameRequired", "Name is required."));
 
         if (request.SessionCount <= 0)
-            return BadRequest(ApiResponse.Fail("Seans sayısı 0'dan büyük olmalıdır."));
+            return BadRequest(ApiResponse.Fail("offers.sessionCountPositive", "Session count must be greater than zero."));
 
         if (request.Price < 0)
-            return BadRequest(ApiResponse.Fail("Fiyat negatif olamaz."));
+            return BadRequest(ApiResponse.Fail("offers.priceNonNegative", "Price cannot be negative."));
 
         var offer = await offerService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = offer.Id }, ApiResponse<OfferPackageDto>.Ok(offer));
@@ -52,17 +52,17 @@ public class OffersController(IOfferService offerService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateOfferPackageRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("İsim zorunludur."));
+            return BadRequest(ApiResponse.Fail("offers.nameRequired", "Name is required."));
 
         if (request.SessionCount <= 0)
-            return BadRequest(ApiResponse.Fail("Seans sayısı 0'dan büyük olmalıdır."));
+            return BadRequest(ApiResponse.Fail("offers.sessionCountPositive", "Session count must be greater than zero."));
 
         if (request.Price < 0)
-            return BadRequest(ApiResponse.Fail("Fiyat negatif olamaz."));
+            return BadRequest(ApiResponse.Fail("offers.priceNonNegative", "Price cannot be negative."));
 
         var offer = await offerService.UpdateAsync(id, request, cancellationToken);
         return offer is null
-            ? NotFound(ApiResponse.Fail("Teklif paketi bulunamadı."))
+            ? NotFound(ApiResponse.Fail("offers.notFound", "Offer package not found."))
             : Ok(ApiResponse<OfferPackageDto>.Ok(offer));
     }
 
@@ -72,7 +72,7 @@ public class OffersController(IOfferService offerService) : ControllerBase
     {
         var deleted = await offerService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Teklif paketi silindi."))
-            : NotFound(ApiResponse.Fail("Teklif paketi bulunamadı."));
+            ? Ok(ApiResponse.Ok("offers.deleted", "Offer package deleted."))
+            : NotFound(ApiResponse.Fail("offers.notFound", "Offer package not found."));
     }
 }

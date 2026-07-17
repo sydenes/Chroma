@@ -1,4 +1,5 @@
 using Chroma.Application.Abstractions;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Modules.Conversations.Dtos;
 using Chroma.Application.Modules.Conversations.Services;
 using Chroma.Domain.Entities;
@@ -65,17 +66,35 @@ public class ConversationService(
 
         if (request.HasUnread == true)
         {
-            queryable = queryable.Where(x => x.UnreadCount > 0);
+            var userId = currentUser.UserId
+                ?? throw new InvalidOperationException("User context is required.");
+
+            var unreadConversationIds = dbContext.ConversationParticipants
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.UserId == userId && x.UnreadCount > 0)
+                .Select(x => x.ConversationId);
+
+            queryable = queryable.Where(x => unreadConversationIds.Contains(x.Id));
         }
         else if (request.HasUnread == false)
         {
-            queryable = queryable.Where(x => x.UnreadCount == 0);
+            var userId = currentUser.UserId
+                ?? throw new InvalidOperationException("User context is required.");
+
+            var unreadConversationIds = dbContext.ConversationParticipants
+                .AsNoTracking()
+                .Where(x => x.TenantId == tenantId && x.UserId == userId && x.UnreadCount > 0)
+                .Select(x => x.ConversationId);
+
+            queryable = queryable.Where(x => !unreadConversationIds.Contains(x.Id));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Query))
         {
+            var q = request.Query.Trim();
             queryable = queryable.Where(x =>
-                x.ExternalConversationId != null && x.ExternalConversationId.Contains(request.Query.Trim()));
+                (x.ExternalConversationId != null && x.ExternalConversationId.Contains(q))
+                || (x.Title != null && x.Title.Contains(q)));
         }
 
         var totalCount = await queryable.CountAsync(cancellationToken);
@@ -122,9 +141,17 @@ public class ConversationService(
             return await CreateOrGetTeamConversationAsync(tenantId, request.PeerUserId.Value, request.ChannelId, cancellationToken);
         }
 
+        if (request.IsGroup || (request.MemberUserIds is { Count: > 0 }))
+        {
+            return await CreateGroupConversationAsync(tenantId, request, cancellationToken);
+        }
+
         if (!request.ChannelId.HasValue)
         {
-            throw new InvalidOperationException("Kanal seçimi zorunludur.");
+            throw new AppException(
+                "conversations.channelRequired",
+                "Channel selection is required.",
+                400);
         }
 
         var entity = new Conversation
@@ -228,6 +255,22 @@ public class ConversationService(
             return null;
         }
 
+        var userId = currentUser.UserId;
+        if (userId.HasValue)
+        {
+            var participant = await dbContext.ConversationParticipants
+                .FirstOrDefaultAsync(
+                    x => x.ConversationId == id && x.TenantId == tenantId && x.UserId == userId,
+                    cancellationToken);
+
+            if (participant is not null)
+            {
+                participant.UnreadCount = 0;
+                participant.UpdatedAtUtc = DateTime.UtcNow;
+            }
+        }
+
+        // Legacy conversation-level counter kept in sync with current viewer's unread.
         entity.UnreadCount = 0;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -266,29 +309,99 @@ public class ConversationService(
         return true;
     }
 
-    private async Task<ConversationDto> CreateOrGetTeamConversationAsync(
+    private async Task<ConversationDto> CreateGroupConversationAsync(
         Guid tenantId,
-        Guid peerUserId,
-        Guid? channelId,
+        CreateConversationRequest request,
         CancellationToken cancellationToken)
     {
         var currentUserId = currentUser.UserId
             ?? throw new InvalidOperationException("User context is required.");
 
-        if (peerUserId == currentUserId)
+        var title = request.Title?.Trim();
+        if (string.IsNullOrWhiteSpace(title))
         {
-            throw new InvalidOperationException("Kendinizle sohbet başlatılamaz.");
+            throw new AppException(
+                "conversations.groupTitleRequired",
+                "Group title is required.",
+                400);
         }
 
-        var peerIsMember = await dbContext.UserTenants
+        var memberIds = (request.MemberUserIds ?? [])
+            .Where(id => id != Guid.Empty && id != currentUserId)
+            .Distinct()
+            .ToList();
+
+        if (memberIds.Count == 0)
+        {
+            throw new AppException(
+                "conversations.groupMembersRequired",
+                "Select at least one other member for the group.",
+                400);
+        }
+
+        var activeMemberCount = await dbContext.UserTenants
             .AsNoTracking()
-            .AnyAsync(x => x.TenantId == tenantId && x.UserId == peerUserId && x.Status == "active", cancellationToken);
+            .CountAsync(
+                x => x.TenantId == tenantId && memberIds.Contains(x.UserId) && x.Status == "active",
+                cancellationToken);
 
-        if (!peerIsMember)
+        if (activeMemberCount != memberIds.Count)
         {
-            throw new InvalidOperationException("Seçilen kullanıcı bu şirkette aktif değil.");
+            throw new AppException(
+                "conversations.peerNotActive",
+                "One or more selected users are not active in this workspace.",
+                400);
         }
 
+        var channel = await ResolveInternalChannelAsync(tenantId, request.ChannelId, cancellationToken);
+
+        var entity = new Conversation
+        {
+            TenantId = tenantId,
+            ChannelId = channel.Id,
+            ContactId = null,
+            AssignedUserId = currentUserId,
+            ExternalConversationId = $"group:{Guid.NewGuid():D}",
+            Title = title,
+            IsGroup = true,
+            Status = "open"
+        };
+
+        dbContext.Conversations.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var participants = new List<ConversationParticipant>
+        {
+            new()
+            {
+                TenantId = tenantId,
+                ConversationId = entity.Id,
+                UserId = currentUserId,
+                Role = "owner"
+            }
+        };
+
+        participants.AddRange(memberIds.Select(memberId => new ConversationParticipant
+        {
+            TenantId = tenantId,
+            ConversationId = entity.Id,
+            UserId = memberId,
+            Role = "member"
+        }));
+
+        dbContext.ConversationParticipants.AddRange(participants);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var dto = ToDto(entity);
+        await PopulateDisplayNamesAsync([dto], cancellationToken);
+        return dto;
+    }
+
+    private async Task<Channel> ResolveInternalChannelAsync(
+        Guid tenantId,
+        Guid? channelId,
+        CancellationToken cancellationToken)
+    {
         var channel = channelId.HasValue
             ? await dbContext.Channels.FirstOrDefaultAsync(
                 x => x.Id == channelId.Value && x.TenantId == tenantId,
@@ -309,6 +422,38 @@ public class ConversationService(
             dbContext.Channels.Add(channel);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        return channel;
+    }
+
+    private async Task<ConversationDto> CreateOrGetTeamConversationAsync(
+        Guid tenantId,
+        Guid peerUserId,
+        Guid? channelId,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = currentUser.UserId
+            ?? throw new InvalidOperationException("User context is required.");
+
+        if (peerUserId == currentUserId)
+        {
+            throw new AppException(
+                "conversations.selfConversation",
+                "You cannot start a conversation with yourself.");
+        }
+
+        var peerIsMember = await dbContext.UserTenants
+            .AsNoTracking()
+            .AnyAsync(x => x.TenantId == tenantId && x.UserId == peerUserId && x.Status == "active", cancellationToken);
+
+        if (!peerIsMember)
+        {
+            throw new AppException(
+                "conversations.peerNotActive",
+                "The selected user is not active in this workspace.");
+        }
+
+        var channel = await ResolveInternalChannelAsync(tenantId, channelId, cancellationToken);
 
         var a = currentUserId;
         var b = peerUserId;
@@ -338,6 +483,7 @@ public class ConversationService(
             ContactId = null,
             AssignedUserId = peerUserId,
             ExternalConversationId = externalKey,
+            IsGroup = false,
             Status = "open"
         };
 
@@ -395,7 +541,7 @@ public class ConversationService(
         var participants = await dbContext.ConversationParticipants
             .AsNoTracking()
             .Where(x => conversationIds.Contains(x.ConversationId) && x.UserId != null)
-            .Select(x => new { x.ConversationId, UserId = x.UserId!.Value })
+            .Select(x => new { x.ConversationId, UserId = x.UserId!.Value, x.UnreadCount })
             .ToListAsync(cancellationToken);
 
         var userIds = participants.Select(x => x.UserId).Distinct().ToArray();
@@ -409,21 +555,60 @@ public class ConversationService(
         }
 
         var me = currentUser.UserId;
+        var myUnreadByConversation = participants
+            .Where(x => me.HasValue && x.UserId == me.Value)
+            .GroupBy(x => x.ConversationId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.UnreadCount));
 
         foreach (var conversation in conversations)
         {
+            if (myUnreadByConversation.TryGetValue(conversation.Id, out var myUnread))
+            {
+                conversation.UnreadCount = myUnread;
+            }
+
             if (conversation.ContactId is Guid contactId && contactNames.TryGetValue(contactId, out var contactName))
             {
                 conversation.ContactName = contactName;
                 conversation.Kind = "external";
                 conversation.Title = contactName;
+                conversation.IsGroup = false;
+                conversation.ParticipantCount = 0;
+                conversation.ParticipantNames = [];
                 continue;
             }
 
             conversation.Kind = "team";
-            var peerId = participants
-                .Where(x => x.ConversationId == conversation.Id && x.UserId != me)
-                .Select(x => (Guid?)x.UserId)
+            var memberIds = participants
+                .Where(x => x.ConversationId == conversation.Id)
+                .Select(x => x.UserId)
+                .Distinct()
+                .ToArray();
+
+            conversation.ParticipantCount = memberIds.Length;
+            conversation.ParticipantNames = memberIds
+                .Where(id => userNames.ContainsKey(id))
+                .Select(id => userNames[id])
+                .OrderBy(name => name)
+                .ToArray();
+
+            if (conversation.IsGroup)
+            {
+                if (string.IsNullOrWhiteSpace(conversation.Title))
+                {
+                    conversation.Title = string.Join(", ", conversation.ParticipantNames.Take(3));
+                    if (conversation.ParticipantNames.Count > 3)
+                    {
+                        conversation.Title += $" +{conversation.ParticipantNames.Count - 3}";
+                    }
+                }
+
+                continue;
+            }
+
+            var peerId = memberIds
+                .Where(id => id != me)
+                .Select(id => (Guid?)id)
                 .FirstOrDefault()
                 ?? conversation.AssignedUserId;
 
@@ -453,6 +638,8 @@ public class ConversationService(
             UnreadCount = entity.UnreadCount,
             ExternalConversationId = entity.ExternalConversationId,
             LastMessageAtUtc = entity.LastMessageAtUtc,
+            Title = entity.Title ?? string.Empty,
+            IsGroup = entity.IsGroup,
             Kind = entity.ContactId is null ? "team" : "external"
         };
     }
@@ -470,6 +657,8 @@ public class ConversationService(
             UnreadCount = x.UnreadCount,
             ExternalConversationId = x.ExternalConversationId,
             LastMessageAtUtc = x.LastMessageAtUtc,
+            Title = x.Title ?? string.Empty,
+            IsGroup = x.IsGroup,
             Kind = x.ContactId == null ? "team" : "external"
         };
     }

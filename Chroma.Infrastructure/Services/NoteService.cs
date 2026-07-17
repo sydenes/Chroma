@@ -196,7 +196,9 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
             AuthorId = entity.AuthorId,
             OwnerType = entity.OwnerType,
             OwnerId = entity.OwnerId,
-            Content = entity.Content
+            Content = entity.Content,
+            CreatedAtUtc = entity.CreatedAtUtc,
+            UpdatedAtUtc = entity.UpdatedAtUtc
         };
     }
 
@@ -209,7 +211,9 @@ public class NoteService(IApplicationDbContext dbContext, ICurrentTenant current
             AuthorId = x.AuthorId,
             OwnerType = x.OwnerType,
             OwnerId = x.OwnerId,
-            Content = x.Content
+            Content = x.Content,
+            CreatedAtUtc = x.CreatedAtUtc,
+            UpdatedAtUtc = x.UpdatedAtUtc
         };
     }
 }

@@ -14,6 +14,7 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
         entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
         entity.Property(x => x.Mode).HasMaxLength(20).IsRequired();
+        entity.Property(x => x.SessionType).HasMaxLength(40).IsRequired();
         entity.Property(x => x.StartsAtUtc).HasColumnType("timestamptz");
         entity.Property(x => x.EndsAtUtc).HasColumnType("timestamptz");
 

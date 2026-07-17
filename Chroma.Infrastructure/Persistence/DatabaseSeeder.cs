@@ -82,7 +82,10 @@ public static class DatabaseSeeder
         ("workflows.update", "Update workflows"),
         ("workflows.delete", "Delete workflows"),
         ("notifications.read", "View notifications"),
+        ("notifications.create", "Create notifications"),
+        ("notifications.mark_read", "Mark notifications read"),
         ("notifications.update", "Update notifications"),
+        ("notifications.delete", "Delete notifications"),
         ("reports.read", "View reports"),
         ("appointments.read", "View appointments"),
         ("appointments.create", "Create appointments"),
@@ -222,6 +225,7 @@ public static class DatabaseSeeder
         {
             TenantId = tenantId,
             Theme = "light",
+            AccentColor = "violet",
             Language = "tr",
             Currency = "TRY",
             TimeZone = "Europe/Istanbul"
@@ -284,7 +288,8 @@ public static class DatabaseSeeder
         "conversations.assign", "conversations.update_status", "conversations.mark_read",
         "messages.read", "messages.send",
         "custom_fields.read", "custom_fields.create", "custom_fields.update",
-        "notifications.read"
+        "files.read", "files.create", "files.delete",
+        "notifications.read", "notifications.mark_read"
     ];
 
     private static async Task EnsureStaffRoleAsync(

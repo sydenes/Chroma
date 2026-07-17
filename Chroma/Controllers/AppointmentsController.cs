@@ -26,7 +26,7 @@ public class AppointmentsController(IAppointmentService appointmentService) : Co
     {
         var appointment = await appointmentService.GetByIdAsync(id, cancellationToken);
         return appointment is null
-            ? NotFound(ApiResponse.Fail("Randevu bulunamadı."))
+            ? NotFound(ApiResponse.Fail("appointments.notFound", "Appointment not found."))
             : Ok(ApiResponse<AppointmentDto>.Ok(appointment));
     }
 
@@ -35,10 +35,10 @@ public class AppointmentsController(IAppointmentService appointmentService) : Co
     public async Task<IActionResult> CreateAsync(CreateAppointmentRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(ApiResponse.Fail("Başlık zorunludur."));
+            return BadRequest(ApiResponse.Fail("appointments.titleRequired", "Title is required."));
 
         if (request.EndsAtUtc <= request.StartsAtUtc)
-            return BadRequest(ApiResponse.Fail("Bitiş zamanı başlangıç zamanından sonra olmalıdır."));
+            return BadRequest(ApiResponse.Fail("appointments.endTimeAfterStart", "End time must be after start time."));
 
         var appointment = await appointmentService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = appointment.Id }, ApiResponse<AppointmentDto>.Ok(appointment));
@@ -49,14 +49,14 @@ public class AppointmentsController(IAppointmentService appointmentService) : Co
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateAppointmentRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(ApiResponse.Fail("Başlık zorunludur."));
+            return BadRequest(ApiResponse.Fail("appointments.titleRequired", "Title is required."));
 
         if (request.EndsAtUtc <= request.StartsAtUtc)
-            return BadRequest(ApiResponse.Fail("Bitiş zamanı başlangıç zamanından sonra olmalıdır."));
+            return BadRequest(ApiResponse.Fail("appointments.endTimeAfterStart", "End time must be after start time."));
 
         var appointment = await appointmentService.UpdateAsync(id, request, cancellationToken);
         return appointment is null
-            ? NotFound(ApiResponse.Fail("Randevu bulunamadı."))
+            ? NotFound(ApiResponse.Fail("appointments.notFound", "Appointment not found."))
             : Ok(ApiResponse<AppointmentDto>.Ok(appointment));
     }
 
@@ -66,7 +66,7 @@ public class AppointmentsController(IAppointmentService appointmentService) : Co
     {
         var deleted = await appointmentService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Randevu silindi."))
-            : NotFound(ApiResponse.Fail("Randevu bulunamadı."));
+            ? Ok(ApiResponse.Ok("appointments.deleted", "Appointment deleted."))
+            : NotFound(ApiResponse.Fail("appointments.notFound", "Appointment not found."));
     }
 }

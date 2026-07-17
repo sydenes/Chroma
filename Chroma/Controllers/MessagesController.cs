@@ -26,7 +26,7 @@ public class MessagesController(IMessageService messageService) : ControllerBase
     {
         var message = await messageService.GetByIdAsync(id, cancellationToken);
         return message is null
-            ? NotFound(ApiResponse.Fail("Message not found."))
+            ? NotFound(ApiResponse.Fail("messages.notFound", "Message not found."))
             : Ok(ApiResponse<MessageDto>.Ok(message));
     }
 
@@ -34,8 +34,10 @@ public class MessagesController(IMessageService messageService) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SendOutboundAsync(SendOutboundMessageRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Text) && string.IsNullOrWhiteSpace(request.MediaUrl))
-            return BadRequest(ApiResponse.Fail("Text or MediaUrl is required."));
+        if (string.IsNullOrWhiteSpace(request.Text)
+            && string.IsNullOrWhiteSpace(request.MediaUrl)
+            && !request.FileId.HasValue)
+            return BadRequest(ApiResponse.Fail("messages.textOrMediaUrlRequired", "Text or media URL is required."));
 
         var message = await messageService.SendOutboundAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = message.Id }, ApiResponse<MessageDto>.Ok(message));

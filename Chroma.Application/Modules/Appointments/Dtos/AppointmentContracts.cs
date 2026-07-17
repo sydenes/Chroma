@@ -14,6 +14,11 @@ public sealed class AppointmentDto
     public DateTime EndsAtUtc { get; init; }
     public string Status { get; init; } = "scheduled";
     public string Mode { get; init; } = "office";
+    public string SessionType { get; init; } = "follow_up";
+    public string? SessionSummary { get; init; }
+    public string? PrivateNotes { get; init; }
+    public string? NextSteps { get; init; }
+    public int? ProgressScore { get; init; }
 }
 
 public sealed class AppointmentSearchRequest
@@ -44,6 +49,11 @@ public sealed class CreateAppointmentRequest
     public DateTime StartsAtUtc { get; init; }
     public DateTime EndsAtUtc { get; init; }
     public string Mode { get; init; } = "office";
+    public string SessionType { get; init; } = "follow_up";
+    public string? SessionSummary { get; init; }
+    public string? PrivateNotes { get; init; }
+    public string? NextSteps { get; init; }
+    public int? ProgressScore { get; init; }
 }
 
 public sealed class UpdateAppointmentRequest
@@ -56,4 +66,9 @@ public sealed class UpdateAppointmentRequest
     public DateTime EndsAtUtc { get; init; }
     public string Status { get; init; } = "scheduled";
     public string Mode { get; init; } = "office";
+    public string SessionType { get; init; } = "follow_up";
+    public string? SessionSummary { get; init; }
+    public string? PrivateNotes { get; init; }
+    public string? NextSteps { get; init; }
+    public int? ProgressScore { get; init; }
 }

@@ -26,7 +26,7 @@ public class ChannelsController(IChannelService channelService) : ControllerBase
     {
         var channel = await channelService.GetByIdAsync(id, cancellationToken);
         return channel is null
-            ? NotFound(ApiResponse.Fail("Channel not found."))
+            ? NotFound(ApiResponse.Fail("channels.notFound", "Channel not found."))
             : Ok(ApiResponse<ChannelDto>.Ok(channel));
     }
 
@@ -35,7 +35,7 @@ public class ChannelsController(IChannelService channelService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateChannelRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Provider))
-            return BadRequest(ApiResponse.Fail("Name and Provider are required."));
+            return BadRequest(ApiResponse.Fail("channels.nameAndProviderRequired", "Name and provider are required."));
 
         var channel = await channelService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = channel.Id }, ApiResponse<ChannelDto>.Ok(channel));
@@ -46,11 +46,11 @@ public class ChannelsController(IChannelService channelService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateChannelRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("channels.nameRequired", "Name is required."));
 
         var channel = await channelService.UpdateAsync(id, request, cancellationToken);
         return channel is null
-            ? NotFound(ApiResponse.Fail("Channel not found."))
+            ? NotFound(ApiResponse.Fail("channels.notFound", "Channel not found."))
             : Ok(ApiResponse<ChannelDto>.Ok(channel));
     }
 
@@ -60,7 +60,7 @@ public class ChannelsController(IChannelService channelService) : ControllerBase
     {
         var deleted = await channelService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Channel deleted."))
-            : NotFound(ApiResponse.Fail("Channel not found."));
+            ? Ok(ApiResponse.Ok("channels.deleted", "Channel deleted."))
+            : NotFound(ApiResponse.Fail("channels.notFound", "Channel not found."));
     }
 }

@@ -26,7 +26,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
     {
         var contact = await contactService.GetByIdAsync(id, cancellationToken);
         return contact is null
-            ? NotFound(ApiResponse.Fail("Contact not found."))
+            ? NotFound(ApiResponse.Fail("contacts.notFound", "Contact not found."))
             : Ok(ApiResponse<ContactDto>.Ok(contact));
     }
 
@@ -35,7 +35,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateContactRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.FirstName))
-            return BadRequest(ApiResponse.Fail("FirstName is required."));
+            return BadRequest(ApiResponse.Fail("contacts.firstNameRequired", "First name is required."));
 
         var contact = await contactService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = contact.Id }, ApiResponse<ContactDto>.Ok(contact));
@@ -46,11 +46,11 @@ public class ContactsController(IContactService contactService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateContactRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.FirstName))
-            return BadRequest(ApiResponse.Fail("FirstName is required."));
+            return BadRequest(ApiResponse.Fail("contacts.firstNameRequired", "First name is required."));
 
         var contact = await contactService.UpdateAsync(id, request, cancellationToken);
         return contact is null
-            ? NotFound(ApiResponse.Fail("Contact not found."))
+            ? NotFound(ApiResponse.Fail("contacts.notFound", "Contact not found."))
             : Ok(ApiResponse<ContactDto>.Ok(contact));
     }
 
@@ -60,7 +60,7 @@ public class ContactsController(IContactService contactService) : ControllerBase
     {
         var deleted = await contactService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Contact deleted."))
-            : NotFound(ApiResponse.Fail("Contact not found."));
+            ? Ok(ApiResponse.Ok("contacts.deleted", "Contact deleted."))
+            : NotFound(ApiResponse.Fail("contacts.notFound", "Contact not found."));
     }
 }

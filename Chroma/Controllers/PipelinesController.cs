@@ -26,7 +26,7 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
     {
         var pipeline = await pipelineService.GetByIdAsync(id, cancellationToken);
         return pipeline is null
-            ? NotFound(ApiResponse.Fail("Pipeline not found."))
+            ? NotFound(ApiResponse.Fail("pipelines.notFound", "Pipeline not found."))
             : Ok(ApiResponse<PipelineDto>.Ok(pipeline));
     }
 
@@ -35,7 +35,7 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
     public async Task<IActionResult> CreateAsync(CreatePipelineRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("pipelines.nameRequired", "Name is required."));
 
         var pipeline = await pipelineService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = pipeline.Id }, ApiResponse<PipelineDto>.Ok(pipeline));
@@ -46,11 +46,11 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
     public async Task<IActionResult> UpdateAsync(Guid id, UpdatePipelineRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("pipelines.nameRequired", "Name is required."));
 
         var pipeline = await pipelineService.UpdateAsync(id, request, cancellationToken);
         return pipeline is null
-            ? NotFound(ApiResponse.Fail("Pipeline not found."))
+            ? NotFound(ApiResponse.Fail("pipelines.notFound", "Pipeline not found."))
             : Ok(ApiResponse<PipelineDto>.Ok(pipeline));
     }
 
@@ -60,8 +60,8 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
     {
         var deleted = await pipelineService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Pipeline deleted."))
-            : NotFound(ApiResponse.Fail("Pipeline not found."));
+            ? Ok(ApiResponse.Ok("pipelines.deleted", "Pipeline deleted."))
+            : NotFound(ApiResponse.Fail("pipelines.notFound", "Pipeline not found."));
     }
 
     [RequirePermission("pipelines.create_stage")]
@@ -72,7 +72,7 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("pipelines.nameRequired", "Name is required."));
 
         var stage = await pipelineService.CreateStageAsync(pipelineId, request, cancellationToken);
         return Ok(ApiResponse<StageDto>.Ok(stage));
@@ -87,11 +87,11 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("pipelines.nameRequired", "Name is required."));
 
         var stage = await pipelineService.UpdateStageAsync(pipelineId, stageId, request, cancellationToken);
         return stage is null
-            ? NotFound(ApiResponse.Fail("Stage not found."))
+            ? NotFound(ApiResponse.Fail("pipelines.stageNotFound", "Stage not found."))
             : Ok(ApiResponse<StageDto>.Ok(stage));
     }
 
@@ -101,7 +101,7 @@ public class PipelinesController(IPipelineService pipelineService) : ControllerB
     {
         var deleted = await pipelineService.DeleteStageAsync(pipelineId, stageId, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Stage deleted."))
-            : NotFound(ApiResponse.Fail("Stage not found."));
+            ? Ok(ApiResponse.Ok("pipelines.stageDeleted", "Stage deleted."))
+            : NotFound(ApiResponse.Fail("pipelines.stageNotFound", "Stage not found."));
     }
 }

@@ -13,8 +13,11 @@ public sealed class ConversationDto
     /// <summary>team | external</summary>
     public string Kind { get; set; } = "external";
     public string Title { get; set; } = string.Empty;
+    public bool IsGroup { get; set; }
+    public int ParticipantCount { get; set; }
+    public IReadOnlyCollection<string> ParticipantNames { get; set; } = [];
     public string Status { get; init; } = "open";
-    public int UnreadCount { get; init; }
+    public int UnreadCount { get; set; }
     public string? ExternalConversationId { get; init; }
     public DateTime? LastMessageAtUtc { get; init; }
 }
@@ -48,8 +51,13 @@ public sealed class CreateConversationRequest
     public Guid? ChannelId { get; init; }
     public Guid? ContactId { get; init; }
     public Guid? AssignedUserId { get; init; }
-    /// <summary>Ekip sohbeti için karşı taraf kullanıcı id</summary>
+    /// <summary>Ekip sohbeti için karşı taraf kullanıcı id (1:1)</summary>
     public Guid? PeerUserId { get; init; }
+    /// <summary>Grup sohbeti oluşturmak için üye kullanıcı id listesi (me hariç veya dahil)</summary>
+    public IReadOnlyCollection<Guid>? MemberUserIds { get; init; }
+    /// <summary>Grup adı</summary>
+    public string? Title { get; init; }
+    public bool IsGroup { get; init; }
     public string? ExternalConversationId { get; init; }
 }
 

@@ -26,7 +26,7 @@ public class FormsController(IFormService formService) : ControllerBase
     {
         var form = await formService.GetByIdAsync(id, cancellationToken);
         return form is null
-            ? NotFound(ApiResponse.Fail("Form not found."))
+            ? NotFound(ApiResponse.Fail("forms.notFound", "Form not found."))
             : Ok(ApiResponse<FormDto>.Ok(form));
     }
 
@@ -35,7 +35,7 @@ public class FormsController(IFormService formService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateFormRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("forms.nameRequired", "Name is required."));
 
         var form = await formService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = form.Id }, ApiResponse<FormDto>.Ok(form));
@@ -46,11 +46,11 @@ public class FormsController(IFormService formService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateFormRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("forms.nameRequired", "Name is required."));
 
         var form = await formService.UpdateAsync(id, request, cancellationToken);
         return form is null
-            ? NotFound(ApiResponse.Fail("Form not found."))
+            ? NotFound(ApiResponse.Fail("forms.notFound", "Form not found."))
             : Ok(ApiResponse<FormDto>.Ok(form));
     }
 
@@ -60,8 +60,8 @@ public class FormsController(IFormService formService) : ControllerBase
     {
         var deleted = await formService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Form deleted."))
-            : NotFound(ApiResponse.Fail("Form not found."));
+            ? Ok(ApiResponse.Ok("forms.deleted", "Form deleted."))
+            : NotFound(ApiResponse.Fail("forms.notFound", "Form not found."));
     }
 
     [RequirePermission("forms.create_field")]
@@ -72,7 +72,7 @@ public class FormsController(IFormService formService) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Label))
-            return BadRequest(ApiResponse.Fail("Name and Label are required."));
+            return BadRequest(ApiResponse.Fail("forms.nameAndLabelRequired", "Name and label are required."));
 
         var field = await formService.CreateFieldAsync(formId, request, cancellationToken);
         return Ok(ApiResponse<FormFieldDto>.Ok(field));
@@ -87,11 +87,11 @@ public class FormsController(IFormService formService) : ControllerBase
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Label))
-            return BadRequest(ApiResponse.Fail("Name and Label are required."));
+            return BadRequest(ApiResponse.Fail("forms.nameAndLabelRequired", "Name and label are required."));
 
         var field = await formService.UpdateFieldAsync(formId, fieldId, request, cancellationToken);
         return field is null
-            ? NotFound(ApiResponse.Fail("Form field not found."))
+            ? NotFound(ApiResponse.Fail("forms.fieldNotFound", "Form field not found."))
             : Ok(ApiResponse<FormFieldDto>.Ok(field));
     }
 
@@ -101,7 +101,7 @@ public class FormsController(IFormService formService) : ControllerBase
     {
         var deleted = await formService.DeleteFieldAsync(formId, fieldId, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Form field deleted."))
-            : NotFound(ApiResponse.Fail("Form field not found."));
+            ? Ok(ApiResponse.Ok("forms.fieldDeleted", "Form field deleted."))
+            : NotFound(ApiResponse.Fail("forms.fieldNotFound", "Form field not found."));
     }
 }

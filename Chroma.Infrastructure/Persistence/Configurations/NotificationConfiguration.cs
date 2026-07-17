@@ -14,6 +14,7 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
         entity.Property(x => x.Body).IsRequired();
         entity.Property(x => x.NotificationType).HasMaxLength(40).IsRequired();
+        entity.Property(x => x.SourceType).HasMaxLength(40);
         entity.Property(x => x.ReadAtUtc).HasColumnType("timestamptz");
 
         entity.Property(x => x.CreatedAtUtc).HasColumnType("timestamptz");
@@ -27,6 +28,9 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 
         entity.HasIndex(x => new { x.TenantId, x.UserId, x.IsRead });
         entity.HasIndex(x => new { x.UserId, x.CreatedAtUtc });
+        entity.HasIndex(x => new { x.UserId, x.SourceType, x.SourceId })
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false AND \"SourceType\" IS NOT NULL AND \"SourceId\" IS NOT NULL");
         entity.HasQueryFilter(x => !x.IsDeleted);
     }
 }

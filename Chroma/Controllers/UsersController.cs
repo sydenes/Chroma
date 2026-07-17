@@ -26,7 +26,7 @@ public class UsersController(IUserService userService) : ControllerBase
     {
         var user = await userService.GetByIdAsync(id, cancellationToken);
         return user is null
-            ? NotFound(ApiResponse.Fail("Kullanıcı bulunamadı."))
+            ? NotFound(ApiResponse.Fail("users.notFound", "User not found."))
             : Ok(ApiResponse<UserDto>.Ok(user));
     }
 
@@ -39,7 +39,9 @@ public class UsersController(IUserService userService) : ControllerBase
             string.IsNullOrWhiteSpace(request.Email) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return BadRequest(ApiResponse.Fail("Ad, soyad, e-posta ve şifre zorunludur."));
+            return BadRequest(ApiResponse.Fail(
+                "users.createFieldsRequired",
+                "First name, last name, email, and password are required."));
         }
 
         try
@@ -59,14 +61,14 @@ public class UsersController(IUserService userService) : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
         {
-            return BadRequest(ApiResponse.Fail("Ad ve soyad zorunludur."));
+            return BadRequest(ApiResponse.Fail("users.nameRequired", "First name and last name are required."));
         }
 
         try
         {
             var user = await userService.UpdateAsync(id, request, cancellationToken);
             return user is null
-                ? NotFound(ApiResponse.Fail("Kullanıcı bulunamadı."))
+                ? NotFound(ApiResponse.Fail("users.notFound", "User not found."))
                 : Ok(ApiResponse<UserDto>.Ok(user));
         }
         catch (InvalidOperationException ex)

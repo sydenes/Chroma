@@ -20,6 +20,8 @@ public class Message : BaseEntity
     public string? ExternalId { get; set; }
     public string? Text { get; set; }
     public string? MediaUrl { get; set; }
+    /// <summary>Optional attachment stored via files API.</summary>
+    public Guid? FileId { get; set; }
     public string Status { get; set; } = "sent";
     public DateTime SentAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? DeliveredAtUtc { get; set; }

@@ -26,7 +26,7 @@ public class ConversationsController(IConversationService conversationService) :
     {
         var conversation = await conversationService.GetByIdAsync(id, cancellationToken);
         return conversation is null
-            ? NotFound(ApiResponse.Fail("Conversation not found."))
+            ? NotFound(ApiResponse.Fail("conversations.notFound", "Conversation not found."))
             : Ok(ApiResponse<ConversationDto>.Ok(conversation));
     }
 
@@ -51,7 +51,7 @@ public class ConversationsController(IConversationService conversationService) :
     {
         var conversation = await conversationService.UpdateAsync(id, request, cancellationToken);
         return conversation is null
-            ? NotFound(ApiResponse.Fail("Conversation not found."))
+            ? NotFound(ApiResponse.Fail("conversations.notFound", "Conversation not found."))
             : Ok(ApiResponse<ConversationDto>.Ok(conversation));
     }
 
@@ -61,7 +61,7 @@ public class ConversationsController(IConversationService conversationService) :
     {
         var conversation = await conversationService.AssignAsync(id, request, cancellationToken);
         return conversation is null
-            ? NotFound(ApiResponse.Fail("Conversation not found."))
+            ? NotFound(ApiResponse.Fail("conversations.notFound", "Conversation not found."))
             : Ok(ApiResponse<ConversationDto>.Ok(conversation));
     }
 
@@ -70,11 +70,11 @@ public class ConversationsController(IConversationService conversationService) :
     public async Task<IActionResult> UpdateStatusAsync(Guid id, UpdateConversationStatusRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Status))
-            return BadRequest(ApiResponse.Fail("Status is required."));
+            return BadRequest(ApiResponse.Fail("conversations.statusRequired", "Status is required."));
 
         var conversation = await conversationService.UpdateStatusAsync(id, request, cancellationToken);
         return conversation is null
-            ? NotFound(ApiResponse.Fail("Conversation not found."))
+            ? NotFound(ApiResponse.Fail("conversations.notFound", "Conversation not found."))
             : Ok(ApiResponse<ConversationDto>.Ok(conversation));
     }
 
@@ -84,7 +84,7 @@ public class ConversationsController(IConversationService conversationService) :
     {
         var conversation = await conversationService.MarkAsReadAsync(id, cancellationToken);
         return conversation is null
-            ? NotFound(ApiResponse.Fail("Conversation not found."))
+            ? NotFound(ApiResponse.Fail("conversations.notFound", "Conversation not found."))
             : Ok(ApiResponse<ConversationDto>.Ok(conversation));
     }
 
@@ -94,7 +94,7 @@ public class ConversationsController(IConversationService conversationService) :
     {
         var deleted = await conversationService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Conversation deleted."))
-            : NotFound(ApiResponse.Fail("Conversation not found."));
+            ? Ok(ApiResponse.Ok("conversations.deleted", "Conversation deleted."))
+            : NotFound(ApiResponse.Fail("conversations.notFound", "Conversation not found."));
     }
 }

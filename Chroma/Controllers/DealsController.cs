@@ -26,7 +26,7 @@ public class DealsController(IDealService dealService) : ControllerBase
     {
         var board = await dealService.GetBoardAsync(pipelineId, cancellationToken);
         return board is null
-            ? NotFound(ApiResponse.Fail("Pipeline not found."))
+            ? NotFound(ApiResponse.Fail("deals.pipelineNotFound", "Pipeline not found."))
             : Ok(ApiResponse<DealBoardDto>.Ok(board));
     }
 
@@ -36,7 +36,7 @@ public class DealsController(IDealService dealService) : ControllerBase
     {
         var deal = await dealService.GetByIdAsync(id, cancellationToken);
         return deal is null
-            ? NotFound(ApiResponse.Fail("Deal not found."))
+            ? NotFound(ApiResponse.Fail("deals.notFound", "Deal not found."))
             : Ok(ApiResponse<DealDto>.Ok(deal));
     }
 
@@ -45,7 +45,7 @@ public class DealsController(IDealService dealService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateDealRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(ApiResponse.Fail("Title is required."));
+            return BadRequest(ApiResponse.Fail("deals.titleRequired", "Title is required."));
 
         var deal = await dealService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = deal.Id }, ApiResponse<DealDto>.Ok(deal));
@@ -56,11 +56,11 @@ public class DealsController(IDealService dealService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateDealRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
-            return BadRequest(ApiResponse.Fail("Title is required."));
+            return BadRequest(ApiResponse.Fail("deals.titleRequired", "Title is required."));
 
         var deal = await dealService.UpdateAsync(id, request, cancellationToken);
         return deal is null
-            ? NotFound(ApiResponse.Fail("Deal not found."))
+            ? NotFound(ApiResponse.Fail("deals.notFound", "Deal not found."))
             : Ok(ApiResponse<DealDto>.Ok(deal));
     }
 
@@ -70,7 +70,7 @@ public class DealsController(IDealService dealService) : ControllerBase
     {
         var deal = await dealService.MoveStageAsync(id, request, cancellationToken);
         return deal is null
-            ? NotFound(ApiResponse.Fail("Deal not found."))
+            ? NotFound(ApiResponse.Fail("deals.notFound", "Deal not found."))
             : Ok(ApiResponse<DealDto>.Ok(deal));
     }
 
@@ -80,7 +80,7 @@ public class DealsController(IDealService dealService) : ControllerBase
     {
         var deleted = await dealService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Deal deleted."))
-            : NotFound(ApiResponse.Fail("Deal not found."));
+            ? Ok(ApiResponse.Ok("deals.deleted", "Deal deleted."))
+            : NotFound(ApiResponse.Fail("deals.notFound", "Deal not found."));
     }
 }

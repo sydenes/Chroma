@@ -26,7 +26,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     {
         var role = await roleService.GetByIdAsync(id, cancellationToken);
         return role is null
-            ? NotFound(ApiResponse.Fail("Role not found."))
+            ? NotFound(ApiResponse.Fail("roles.notFound", "Role not found."))
             : Ok(ApiResponse<RoleDto>.Ok(role));
     }
 
@@ -36,7 +36,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
-            return BadRequest(ApiResponse.Fail("Name is required."));
+            return BadRequest(ApiResponse.Fail("roles.nameRequired", "Name is required."));
         }
 
         var role = await roleService.CreateAsync(request, cancellationToken);
@@ -52,7 +52,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     {
         var role = await roleService.UpdatePermissionsAsync(id, request, cancellationToken);
         return role is null
-            ? NotFound(ApiResponse.Fail("Role not found."))
+            ? NotFound(ApiResponse.Fail("roles.notFound", "Role not found."))
             : Ok(ApiResponse<RoleDto>.Ok(role));
     }
 }

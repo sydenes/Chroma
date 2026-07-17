@@ -1,4 +1,5 @@
 using Chroma.Application.Abstractions;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Modules.Users.Dtos;
 using Chroma.Application.Modules.Users.Services;
 using Chroma.Domain.Entities;
@@ -87,7 +88,9 @@ public class UserService(
 
             if (membershipExists)
             {
-                throw new InvalidOperationException("Bu e-posta ile kayıtlı bir kullanıcı zaten bu müşteride var.");
+                throw new AppException(
+                    "users.emailAlreadyExists",
+                    "A user with this email already exists in this workspace.");
             }
         }
 
@@ -169,7 +172,9 @@ public class UserService(
         var requestedRoleIds = roleIds.Distinct().ToArray();
         if (requestedRoleIds.Any(roleId => !tenantRoleIds.Contains(roleId)))
         {
-            throw new InvalidOperationException("Seçilen roller bu müşteriye ait değil.");
+            throw new AppException(
+                "users.rolesNotInWorkspace",
+                "The selected roles do not belong to this workspace.");
         }
 
         var existing = await dbContext.UserRoles

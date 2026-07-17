@@ -12,6 +12,7 @@ public class TenantSettingsConfiguration : IEntityTypeConfiguration<TenantSettin
         entity.HasKey(x => x.Id);
 
         entity.Property(x => x.Theme).HasMaxLength(40).IsRequired();
+        entity.Property(x => x.AccentColor).HasMaxLength(40).IsRequired();
         entity.Property(x => x.Language).HasMaxLength(10).IsRequired();
         entity.Property(x => x.Currency).HasMaxLength(10).IsRequired();
         entity.Property(x => x.TimeZone).HasMaxLength(80).IsRequired();

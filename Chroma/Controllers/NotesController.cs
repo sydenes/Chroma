@@ -26,7 +26,7 @@ public class NotesController(INoteService noteService) : ControllerBase
     {
         var note = await noteService.GetByIdAsync(id, cancellationToken);
         return note is null
-            ? NotFound(ApiResponse.Fail("Note not found."))
+            ? NotFound(ApiResponse.Fail("notes.notFound", "Note not found."))
             : Ok(ApiResponse<NoteDto>.Ok(note));
     }
 
@@ -35,7 +35,7 @@ public class NotesController(INoteService noteService) : ControllerBase
     public async Task<IActionResult> CreateAsync(CreateNoteRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Content))
-            return BadRequest(ApiResponse.Fail("Content is required."));
+            return BadRequest(ApiResponse.Fail("notes.contentRequired", "Content is required."));
 
         var note = await noteService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = note.Id }, ApiResponse<NoteDto>.Ok(note));
@@ -46,11 +46,11 @@ public class NotesController(INoteService noteService) : ControllerBase
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Content))
-            return BadRequest(ApiResponse.Fail("Content is required."));
+            return BadRequest(ApiResponse.Fail("notes.contentRequired", "Content is required."));
 
         var note = await noteService.UpdateAsync(id, request, cancellationToken);
         return note is null
-            ? NotFound(ApiResponse.Fail("Note not found."))
+            ? NotFound(ApiResponse.Fail("notes.notFound", "Note not found."))
             : Ok(ApiResponse<NoteDto>.Ok(note));
     }
 
@@ -60,7 +60,7 @@ public class NotesController(INoteService noteService) : ControllerBase
     {
         var deleted = await noteService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Note deleted."))
-            : NotFound(ApiResponse.Fail("Note not found."));
+            ? Ok(ApiResponse.Ok("notes.deleted", "Note deleted."))
+            : NotFound(ApiResponse.Fail("notes.notFound", "Note not found."));
     }
 }

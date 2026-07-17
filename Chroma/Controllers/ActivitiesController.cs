@@ -26,7 +26,7 @@ public class ActivitiesController(IActivityService activityService) : Controller
     {
         var activity = await activityService.GetByIdAsync(id, cancellationToken);
         return activity is null
-            ? NotFound(ApiResponse.Fail("Activity not found."))
+            ? NotFound(ApiResponse.Fail("activities.notFound", "Activity not found."))
             : Ok(ApiResponse<ActivityDto>.Ok(activity));
     }
 
@@ -35,7 +35,7 @@ public class ActivitiesController(IActivityService activityService) : Controller
     public async Task<IActionResult> CreateAsync(CreateActivityRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Subject))
-            return BadRequest(ApiResponse.Fail("Subject is required."));
+            return BadRequest(ApiResponse.Fail("activities.subjectRequired", "Subject is required."));
 
         var activity = await activityService.CreateAsync(request, cancellationToken);
         return CreatedAtAction("GetById", new { id = activity.Id }, ApiResponse<ActivityDto>.Ok(activity));
@@ -46,11 +46,11 @@ public class ActivitiesController(IActivityService activityService) : Controller
     public async Task<IActionResult> UpdateAsync(Guid id, UpdateActivityRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Subject))
-            return BadRequest(ApiResponse.Fail("Subject is required."));
+            return BadRequest(ApiResponse.Fail("activities.subjectRequired", "Subject is required."));
 
         var activity = await activityService.UpdateAsync(id, request, cancellationToken);
         return activity is null
-            ? NotFound(ApiResponse.Fail("Activity not found."))
+            ? NotFound(ApiResponse.Fail("activities.notFound", "Activity not found."))
             : Ok(ApiResponse<ActivityDto>.Ok(activity));
     }
 
@@ -60,7 +60,7 @@ public class ActivitiesController(IActivityService activityService) : Controller
     {
         var deleted = await activityService.DeleteAsync(id, cancellationToken);
         return deleted
-            ? Ok(ApiResponse.Ok("Activity deleted."))
-            : NotFound(ApiResponse.Fail("Activity not found."));
+            ? Ok(ApiResponse.Ok("activities.deleted", "Activity deleted."))
+            : NotFound(ApiResponse.Fail("activities.notFound", "Activity not found."));
     }
 }

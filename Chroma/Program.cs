@@ -1,11 +1,14 @@
 using System.Text;
+using System.Text.Json;
 using Chroma.Application;
 using Chroma.BackgroundServices;
 using Chroma.Extensions;
 using Chroma.Infrastructure;
 using Chroma.Infrastructure.Options;
 using Chroma.Infrastructure.Persistence;
+using Chroma.Localization;
 using Chroma.Middleware;
+using Chroma.Application.Common.Responses;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -34,7 +37,12 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console());
 
-    builder.Services.AddControllers();
+    builder.Services.AddSingleton<IApiMessageLocalizer, JsonApiMessageLocalizer>();
+    builder.Services.AddScoped<ApiResponseLocalizationFilter>();
+    builder.Services.AddControllers(options =>
+    {
+        options.Filters.AddService<ApiResponseLocalizationFilter>();
+    });
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
     {
@@ -77,6 +85,27 @@ try
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
                 ClockSkew = TimeSpan.FromMinutes(1)
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnChallenge = async context =>
+                {
+                    context.HandleResponse();
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    context.Response.ContentType = "application/json";
+
+                    var localizer = context.HttpContext.RequestServices
+                        .GetRequiredService<IApiMessageLocalizer>();
+                    const string fallback = "Authentication is required.";
+                    var message = localizer.Localize(
+                        "auth.unauthorized",
+                        fallback,
+                        LanguageCodeMiddleware.GetLanguage(context.HttpContext));
+
+                    await context.Response.WriteAsync(JsonSerializer.Serialize(
+                        ApiResponse.Fail("auth.unauthorized", message),
+                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                }
+            };
         });
 
     var rateLimitOptions = builder.Configuration.GetSection(RateLimitOptions.SectionName).Get<RateLimitOptions>()
@@ -103,6 +132,7 @@ try
 
     builder.Services.AddHostedService<OutboxProcessorService>();
     builder.Services.AddHostedService<ArchiveBackgroundService>();
+    builder.Services.AddHostedService<ReminderNotificationBackgroundService>();
 
     builder.Services.AddAuthorization();
     builder.Services.AddCors(options =>
@@ -116,9 +146,14 @@ try
     });
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+    {
+        options.MultipartBodyLengthLimit = 20 * 1024 * 1024;
+    });
 
     var app = builder.Build();
 
+    app.UseMiddleware<LanguageCodeMiddleware>();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSerilogRequestLogging();
 
