@@ -82,6 +82,7 @@
   "tasks.notFound": "Task not found.",
   "tasks.deleted": "Task deleted.",
   "tasks.titleRequired": "Title is required.",
+  "tasks.ownerNotActive": "The selected user is not active in this workspace.",
   "tenant.settingsNotFound": "Tenant settings not found.",
   "users.notFound": "User not found.",
   "users.createFieldsRequired": "First name, last name, email, and password are required.",

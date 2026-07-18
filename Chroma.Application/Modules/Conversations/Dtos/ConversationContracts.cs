@@ -20,6 +20,7 @@ public sealed class ConversationDto
     public int UnreadCount { get; set; }
     public string? ExternalConversationId { get; init; }
     public DateTime? LastMessageAtUtc { get; init; }
+    public string? LastMessagePreview { get; init; }
 }
 
 public sealed class ConversationSearchRequest

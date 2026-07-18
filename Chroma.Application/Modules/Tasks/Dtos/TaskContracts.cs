@@ -5,6 +5,7 @@ public sealed class CrmTaskDto
     public Guid Id { get; init; }
     public Guid TenantId { get; init; }
     public Guid? OwnerId { get; init; }
+    public Guid? CreatedByUserId { get; init; }
     public Guid? ContactId { get; init; }
     public Guid? CompanyId { get; init; }
     public Guid? DealId { get; init; }
@@ -16,6 +17,7 @@ public sealed class CrmTaskDto
     public DateTime? CompletedAtUtc { get; init; }
     public string? ContactName { get; set; }
     public string? OwnerName { get; set; }
+    public string? CreatedByName { get; set; }
 }
 
 public sealed class CrmTaskSearchRequest

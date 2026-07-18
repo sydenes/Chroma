@@ -27,6 +27,7 @@ using Chroma.Infrastructure.Options;
 using Chroma.Infrastructure.Persistence;
 using Chroma.Infrastructure.Security;
 using Chroma.Infrastructure.Services;
+using Chroma.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -78,7 +79,7 @@ public static class DependencyInjection
         services.AddScoped<IFormService, FormService>();
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IFileService, FileService>();
-        services.AddSingleton<IFileStorage, Chroma.Infrastructure.Storage.LocalFileStorage>();
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddScoped<IWorkflowService, WorkflowService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IReportService, ReportService>();

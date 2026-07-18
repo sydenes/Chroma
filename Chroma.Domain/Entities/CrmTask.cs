@@ -6,6 +6,7 @@ public class CrmTask : BaseEntity
 {
     public Guid TenantId { get; set; }
     public Guid? OwnerId { get; set; }
+    public Guid? CreatedByUserId { get; set; }
     public Guid? ContactId { get; set; }
     public Guid? CompanyId { get; set; }
     public Guid? DealId { get; set; }

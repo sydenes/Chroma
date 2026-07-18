@@ -82,6 +82,7 @@
   "tasks.notFound": "Görev bulunamadı.",
   "tasks.deleted": "Görev silindi.",
   "tasks.titleRequired": "Başlık zorunludur.",
+  "tasks.ownerNotActive": "Seçilen kullanıcı bu şirkette aktif değil.",
   "tenant.settingsNotFound": "Kiracı ayarları bulunamadı.",
   "users.notFound": "Kullanıcı bulunamadı.",
   "users.createFieldsRequired": "Ad, soyad, e-posta ve şifre zorunludur.",

@@ -3,6 +3,7 @@ using System;
 using Chroma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Chroma.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718121605_AddConversationLastMessagePreview")]
+    partial class AddConversationLastMessagePreview
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -643,9 +646,6 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamptz");
 
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid?>("DealId")
                         .HasColumnType("uuid");
 
@@ -691,13 +691,9 @@ namespace Chroma.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ContactId");
 
-                    b.HasIndex("CreatedByUserId");
-
                     b.HasIndex("DealId");
 
                     b.HasIndex("OwnerId");
-
-                    b.HasIndex("TenantId", "CreatedByUserId");
 
                     b.HasIndex("TenantId", "OwnerId");
 
@@ -2207,11 +2203,6 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.HasOne("Chroma.Domain.Entities.Contact", null)
                         .WithMany()
                         .HasForeignKey("ContactId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Chroma.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Chroma.Domain.Entities.Deal", null)

@@ -638,6 +638,7 @@ public class ConversationService(
             UnreadCount = entity.UnreadCount,
             ExternalConversationId = entity.ExternalConversationId,
             LastMessageAtUtc = entity.LastMessageAtUtc,
+            LastMessagePreview = entity.LastMessagePreview,
             Title = entity.Title ?? string.Empty,
             IsGroup = entity.IsGroup,
             Kind = entity.ContactId is null ? "team" : "external"
@@ -657,6 +658,7 @@ public class ConversationService(
             UnreadCount = x.UnreadCount,
             ExternalConversationId = x.ExternalConversationId,
             LastMessageAtUtc = x.LastMessageAtUtc,
+            LastMessagePreview = x.LastMessagePreview,
             Title = x.Title ?? string.Empty,
             IsGroup = x.IsGroup,
             Kind = x.ContactId == null ? "team" : "external"

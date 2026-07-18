@@ -1,4 +1,5 @@
 using Chroma.Application.Abstractions;
+using Chroma.Application.Common.Exceptions;
 using Chroma.Application.Modules.Tasks.Dtos;
 using Chroma.Application.Modules.Tasks.Services;
 using Chroma.Domain.Entities;
@@ -85,12 +86,15 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
-        var ownerId = request.OwnerId ?? currentUser.UserId;
+        var ownerId = await ResolveOwnerIdAsync(tenantId, request.OwnerId, cancellationToken);
+        var createdByUserId = currentUser.UserId
+            ?? throw new InvalidOperationException("Authenticated user context is required.");
 
         var entity = new CrmTask
         {
             TenantId = tenantId,
             OwnerId = ownerId,
+            CreatedByUserId = createdByUserId,
             ContactId = request.ContactId,
             CompanyId = request.CompanyId,
             DealId = request.DealId,
@@ -119,7 +123,7 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
             return null;
         }
 
-        entity.OwnerId = request.OwnerId;
+        entity.OwnerId = await ResolveOwnerIdAsync(tenantId, request.OwnerId, cancellationToken);
         entity.ContactId = request.ContactId;
         entity.CompanyId = request.CompanyId;
         entity.DealId = request.DealId;
@@ -166,6 +170,35 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
         return true;
     }
 
+    private async Task<Guid> ResolveOwnerIdAsync(
+        Guid tenantId,
+        Guid? requestedOwnerId,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = requestedOwnerId
+            ?? currentUser.UserId
+            ?? throw new InvalidOperationException("Authenticated user context is required.");
+
+        var isActiveTenantMember = await dbContext.UserTenants
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.TenantId == tenantId
+                    && x.UserId == ownerId
+                    && x.Status == "active"
+                    && x.User.Status == "active",
+                cancellationToken);
+
+        if (!isActiveTenantMember)
+        {
+            throw new AppException(
+                "tasks.ownerNotActive",
+                "The selected user is not an active member of this workspace.",
+                400);
+        }
+
+        return ownerId;
+    }
+
     private async Task PopulateNamesAsync(
         IReadOnlyCollection<CrmTaskDto> tasks,
         CancellationToken cancellationToken)
@@ -200,27 +233,34 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
             }
         }
 
-        var ownerIds = tasks
-            .Where(x => x.OwnerId.HasValue)
-            .Select(x => x.OwnerId!.Value)
+        var userIds = tasks
+            .SelectMany(x => new Guid?[] { x.OwnerId, x.CreatedByUserId })
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
             .Distinct()
             .ToArray();
 
-        if (ownerIds.Length > 0)
+        if (userIds.Length > 0)
         {
-            var owners = await dbContext.Users
+            var users = await dbContext.Users
                 .AsNoTracking()
-                .Where(x => ownerIds.Contains(x.Id))
+                .Where(x => userIds.Contains(x.Id))
                 .Select(x => new { x.Id, Name = x.FirstName + " " + x.LastName })
                 .ToListAsync(cancellationToken);
 
-            var ownerNameById = owners.ToDictionary(x => x.Id, x => x.Name.Trim());
+            var userNameById = users.ToDictionary(x => x.Id, x => x.Name.Trim());
 
             foreach (var task in tasks)
             {
-                if (task.OwnerId is Guid ownerId && ownerNameById.TryGetValue(ownerId, out var name))
+                if (task.OwnerId is Guid ownerId && userNameById.TryGetValue(ownerId, out var ownerName))
                 {
-                    task.OwnerName = name;
+                    task.OwnerName = ownerName;
+                }
+
+                if (task.CreatedByUserId is Guid createdByUserId
+                    && userNameById.TryGetValue(createdByUserId, out var createdByName))
+                {
+                    task.CreatedByName = createdByName;
                 }
             }
         }
@@ -233,6 +273,7 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
             Id = entity.Id,
             TenantId = entity.TenantId,
             OwnerId = entity.OwnerId,
+            CreatedByUserId = entity.CreatedByUserId,
             ContactId = entity.ContactId,
             CompanyId = entity.CompanyId,
             DealId = entity.DealId,
@@ -252,6 +293,7 @@ public class TaskService(IApplicationDbContext dbContext, ICurrentTenant current
             Id = x.Id,
             TenantId = x.TenantId,
             OwnerId = x.OwnerId,
+            CreatedByUserId = x.CreatedByUserId,
             ContactId = x.ContactId,
             CompanyId = x.CompanyId,
             DealId = x.DealId,

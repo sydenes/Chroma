@@ -26,6 +26,11 @@ public class CrmTaskConfiguration : IEntityTypeConfiguration<CrmTask>
             .HasForeignKey(x => x.OwnerId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        entity.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         entity.HasOne<Contact>()
             .WithMany()
             .HasForeignKey(x => x.ContactId)
@@ -42,6 +47,7 @@ public class CrmTaskConfiguration : IEntityTypeConfiguration<CrmTask>
             .OnDelete(DeleteBehavior.SetNull);
 
         entity.HasIndex(x => new { x.TenantId, x.OwnerId });
+        entity.HasIndex(x => new { x.TenantId, x.CreatedByUserId });
         entity.HasIndex(x => new { x.TenantId, x.Status, x.DueAtUtc });
         entity.HasQueryFilter(x => !x.IsDeleted);
     }

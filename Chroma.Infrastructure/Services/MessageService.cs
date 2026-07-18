@@ -32,6 +32,7 @@ public class MessageService(
 
         var items = await queryable
             .OrderByDescending(x => x.SentAtUtc)
+            .ThenByDescending(x => x.Id)
             .Skip(skip)
             .Take(request.PageSize)
             .Select(MapToDto())
@@ -143,6 +144,7 @@ public class MessageService(
         dbContext.Messages.Add(entity);
 
         conversation.LastMessageAtUtc = entity.SentAtUtc;
+        conversation.LastMessagePreview = CreatePreview(text, file?.FileName);
         conversation.UpdatedAtUtc = DateTime.UtcNow;
 
         var recipients = await dbContext.ConversationParticipants
@@ -172,6 +174,16 @@ public class MessageService(
         }
 
         return dto;
+    }
+
+    private static string CreatePreview(string? text, string? fileName)
+    {
+        var preview = !string.IsNullOrWhiteSpace(text)
+            ? text.Trim()
+            : fileName ?? string.Empty;
+
+        preview = string.Join(' ', preview.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return preview.Length <= 500 ? preview : preview[..497] + "...";
     }
 
     private async Task PopulateFileMetadataAsync(
