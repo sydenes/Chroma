@@ -3,6 +3,7 @@ using System;
 using Chroma.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Chroma.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260719122303_AddTaskBoardModule")]
+    partial class AddTaskBoardModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1621,76 +1624,6 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                     b.ToTable("files", (string)null);
                 });
 
-            modelBuilder.Entity("Chroma.Domain.Entities.SubscriptionPlan", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("MaxUsers")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("MonthlyPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<decimal>("YearlyPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("\"IsDeleted\" = false");
-
-                    b.HasIndex("SortOrder");
-
-                    b.ToTable("subscription_plans", (string)null);
-                });
-
             modelBuilder.Entity("Chroma.Domain.Entities.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2115,57 +2048,6 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("tenant_settings", (string)null);
-                });
-
-            modelBuilder.Entity("Chroma.Domain.Entities.TenantSubscription", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("BillingInterval")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<DateTime?>("ExpiresAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("PlanId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("StartedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("timestamptz");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlanId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Status");
-
-                    b.ToTable("tenant_subscriptions", (string)null);
                 });
 
             modelBuilder.Entity("Chroma.Domain.Entities.User", b =>
@@ -2819,25 +2701,6 @@ namespace Chroma.Infrastructure.Persistence.Migrations
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Chroma.Domain.Entities.TenantSubscription", b =>
-                {
-                    b.HasOne("Chroma.Domain.Entities.SubscriptionPlan", "Plan")
-                        .WithMany()
-                        .HasForeignKey("PlanId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Chroma.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Plan");
-
-                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("Chroma.Domain.Entities.UserRole", b =>

@@ -47,6 +47,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<OfferPackage> OfferPackages => Set<OfferPackage>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<TaskBoard> TaskBoards => Set<TaskBoard>();
+    public DbSet<TaskColumn> TaskColumns => Set<TaskColumn>();
+    public DbSet<TaskCard> TaskCards => Set<TaskCard>();
+    public DbSet<TaskLabel> TaskLabels => Set<TaskLabel>();
+    public DbSet<TaskCardLabel> TaskCardLabels => Set<TaskCardLabel>();
+    public DbSet<TaskComment> TaskComments => Set<TaskComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

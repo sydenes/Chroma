@@ -94,7 +94,13 @@ public static class DatabaseSeeder
         ("offers.read", "View offer packages"),
         ("offers.create", "Create offer packages"),
         ("offers.update", "Update offer packages"),
-        ("offers.delete", "Delete offer packages")
+        ("offers.delete", "Delete offer packages"),
+        ("taskboards.read", "View task boards"),
+        ("taskboards.create", "Create task board cards"),
+        ("taskboards.update", "Update task boards and cards"),
+        ("taskboards.delete", "Delete task board cards"),
+        ("subscriptions.read", "View subscription plans and usage"),
+        ("subscriptions.manage", "Manage subscription plans and assignments")
     ];
 
     public static async Task SeedAsync(
@@ -118,6 +124,7 @@ public static class DatabaseSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var allPermissions = await dbContext.Permissions.AsNoTracking().ToListAsync(cancellationToken);
+        var defaultPlan = await EnsureSubscriptionPlansAsync(dbContext, cancellationToken);
 
         var adminEmail = options.AdminEmail.Trim().ToLowerInvariant();
         var adminUser = await dbContext.Users.FirstOrDefaultAsync(x => x.Email == adminEmail, cancellationToken);
@@ -170,9 +177,23 @@ public static class DatabaseSeeder
                 adminUser.Id,
                 adminEmail,
                 allPermissions,
+                defaultPlan,
                 customer,
                 logger,
                 cancellationToken);
+        }
+
+        // Yeni permission'lar eklendiğinde tüm mevcut tenant Admin/Staff rollerine yay.
+        var allTenantIds = await dbContext.Tenants
+            .AsNoTracking()
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var tenantId in allTenantIds)
+        {
+            await EnsureAdminRoleAsync(dbContext, tenantId, allPermissions, cancellationToken);
+            await EnsureStaffRoleAsync(dbContext, tenantId, allPermissions, cancellationToken);
+            await EnsureTenantSubscriptionAsync(dbContext, tenantId, defaultPlan, cancellationToken);
         }
     }
 
@@ -181,6 +202,7 @@ public static class DatabaseSeeder
         Guid adminUserId,
         string adminEmail,
         IReadOnlyCollection<Permission> allPermissions,
+        SubscriptionPlan defaultPlan,
         CustomerSeed customer,
         ILogger logger,
         CancellationToken cancellationToken)
@@ -205,9 +227,100 @@ public static class DatabaseSeeder
         await EnsureStaffRoleAsync(dbContext, tenant.Id, allPermissions, cancellationToken);
         await EnsureUserTenantAsync(dbContext, adminUserId, tenant.Id, cancellationToken);
         await EnsureUserRoleAsync(dbContext, adminUserId, adminRole.Id, cancellationToken);
+        await EnsureTenantSubscriptionAsync(dbContext, tenant.Id, defaultPlan, cancellationToken);
         await SeedDemoPipelineAsync(dbContext, tenant.Id, customer, cancellationToken);
         await SeedDemoChannelsAsync(dbContext, tenant.Id, cancellationToken);
         await SeedDemoOffersAsync(dbContext, tenant.Id, customer.Slug, cancellationToken);
+    }
+
+    private static async Task<SubscriptionPlan> EnsureSubscriptionPlansAsync(
+        IApplicationDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var plans = new[]
+        {
+            new SubscriptionPlan
+            {
+                Code = "starter",
+                Name = "Başlangıç",
+                Description = "Küçük ekipler için temel paket",
+                MaxUsers = 3,
+                MonthlyPrice = 990m,
+                YearlyPrice = 9900m,
+                Currency = "TRY",
+                SortOrder = 1,
+                IsDefault = true,
+                Status = "active"
+            },
+            new SubscriptionPlan
+            {
+                Code = "pro",
+                Name = "Profesyonel",
+                Description = "Büyüyen ekipler için kullanıcı ve fiyat dengesi",
+                MaxUsers = 10,
+                MonthlyPrice = 2490m,
+                YearlyPrice = 24900m,
+                Currency = "TRY",
+                SortOrder = 2,
+                IsDefault = false,
+                Status = "active"
+            },
+            new SubscriptionPlan
+            {
+                Code = "enterprise",
+                Name = "Kurumsal",
+                Description = "Yüksek kullanıcı kapasiteli paket",
+                MaxUsers = 50,
+                MonthlyPrice = 7990m,
+                YearlyPrice = 79900m,
+                Currency = "TRY",
+                SortOrder = 3,
+                IsDefault = false,
+                Status = "active"
+            }
+        };
+
+        foreach (var plan in plans)
+        {
+            var existing = await dbContext.SubscriptionPlans
+                .FirstOrDefaultAsync(x => x.Code == plan.Code, cancellationToken);
+            if (existing is null)
+            {
+                dbContext.SubscriptionPlans.Add(plan);
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await dbContext.SubscriptionPlans
+            .OrderByDescending(x => x.IsDefault)
+            .ThenBy(x => x.SortOrder)
+            .FirstAsync(cancellationToken);
+    }
+
+    private static async Task EnsureTenantSubscriptionAsync(
+        IApplicationDbContext dbContext,
+        Guid tenantId,
+        SubscriptionPlan defaultPlan,
+        CancellationToken cancellationToken)
+    {
+        var hasActive = await dbContext.TenantSubscriptions
+            .AnyAsync(x => x.TenantId == tenantId && x.Status == "active", cancellationToken);
+        if (hasActive)
+        {
+            return;
+        }
+
+        dbContext.TenantSubscriptions.Add(new TenantSubscription
+        {
+            TenantId = tenantId,
+            PlanId = defaultPlan.Id,
+            BillingInterval = "monthly",
+            Status = "active",
+            StartedAtUtc = DateTime.UtcNow,
+            ExpiresAtUtc = DateTime.UtcNow.AddMonths(1)
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task EnsureTenantSettingsAsync(
@@ -279,6 +392,8 @@ public static class DatabaseSeeder
         "deals.read", "deals.create", "deals.update", "deals.delete", "deals.move_stage",
         "notes.read", "notes.create", "notes.update", "notes.delete",
         "tasks.read", "tasks.create", "tasks.update", "tasks.delete",
+        "taskboards.read", "taskboards.create", "taskboards.update", "taskboards.delete",
+        "subscriptions.read",
         "activities.read", "activities.create", "activities.update",
         "appointments.read", "appointments.create", "appointments.update", "appointments.delete",
         "offers.read", "offers.create", "offers.update",

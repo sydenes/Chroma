@@ -76,6 +76,54 @@ public static class DatabaseMigrationExtensions
                 ADD COLUMN IF NOT EXISTS "UnreadCount" integer NOT NULL DEFAULT 0;
                 """);
 
+            // Yeni taskboards izinlerini Admin / Uzman rollerine bağla (idempotent)
+            await dbContext.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO permissions ("Id", "Key", "Description", "IsDeleted", "CreatedAtUtc")
+                SELECT gen_random_uuid(), v.key, v.description, FALSE, NOW() AT TIME ZONE 'utc'
+                FROM (VALUES
+                    ('taskboards.read', 'View task boards'),
+                    ('taskboards.create', 'Create task board cards'),
+                    ('taskboards.update', 'Update task boards and cards'),
+                    ('taskboards.delete', 'Delete task board cards'),
+                    ('subscriptions.read', 'View subscription plans and usage'),
+                    ('subscriptions.manage', 'Manage subscription plans and assignments')
+                ) AS v(key, description)
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM permissions p WHERE p."Key" = v.key AND p."IsDeleted" = FALSE
+                );
+
+                INSERT INTO role_permissions ("RoleId", "PermissionId")
+                SELECT r."Id", p."Id"
+                FROM roles r
+                CROSS JOIN permissions p
+                WHERE r."Name" = 'Admin'
+                  AND p."Key" IN (
+                      'taskboards.read', 'taskboards.create', 'taskboards.update', 'taskboards.delete',
+                      'subscriptions.read', 'subscriptions.manage'
+                  )
+                  AND p."IsDeleted" = FALSE
+                  AND NOT EXISTS (
+                      SELECT 1 FROM role_permissions rp
+                      WHERE rp."RoleId" = r."Id" AND rp."PermissionId" = p."Id"
+                  );
+
+                INSERT INTO role_permissions ("RoleId", "PermissionId")
+                SELECT r."Id", p."Id"
+                FROM roles r
+                CROSS JOIN permissions p
+                WHERE r."Name" = 'Uzman'
+                  AND p."Key" IN (
+                      'taskboards.read', 'taskboards.create', 'taskboards.update', 'taskboards.delete',
+                      'subscriptions.read'
+                  )
+                  AND p."IsDeleted" = FALSE
+                  AND NOT EXISTS (
+                      SELECT 1 FROM role_permissions rp
+                      WHERE rp."RoleId" = r."Id" AND rp."PermissionId" = p."Id"
+                  );
+                """);
+
             logger.LogInformation("Database migrations applied successfully.");
 
             await DatabaseSeeder.SeedAsync(

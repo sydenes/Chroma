@@ -22,6 +22,8 @@ using Chroma.Application.Modules.Files.Services;
 using Chroma.Application.Modules.Workflows.Services;
 using Chroma.Application.Modules.Notifications.Services;
 using Chroma.Application.Modules.Reports.Services;
+using Chroma.Application.Modules.Subscriptions.Services;
+using Chroma.Application.Modules.TaskBoards.Services;
 using Chroma.Infrastructure.Integrations;
 using Chroma.Infrastructure.Options;
 using Chroma.Infrastructure.Persistence;
@@ -83,6 +85,8 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowService, WorkflowService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<ITaskBoardService, TaskBoardService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
 
         services.AddSingleton<IChannelSecretProtector, AesChannelSecretProtector>();
         services.AddSingleton<IChannelAdapter, WhatsAppAdapter>();

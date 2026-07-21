@@ -45,6 +45,14 @@ public interface IApplicationDbContext
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Appointment> Appointments { get; }
     DbSet<OfferPackage> OfferPackages { get; }
+    DbSet<SubscriptionPlan> SubscriptionPlans { get; }
+    DbSet<TenantSubscription> TenantSubscriptions { get; }
+    DbSet<TaskBoard> TaskBoards { get; }
+    DbSet<TaskColumn> TaskColumns { get; }
+    DbSet<TaskCard> TaskCards { get; }
+    DbSet<TaskLabel> TaskLabels { get; }
+    DbSet<TaskCardLabel> TaskCardLabels { get; }
+    DbSet<TaskComment> TaskComments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

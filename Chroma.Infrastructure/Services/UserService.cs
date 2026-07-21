@@ -1,5 +1,6 @@
 using Chroma.Application.Abstractions;
 using Chroma.Application.Common.Exceptions;
+using Chroma.Application.Modules.Subscriptions.Services;
 using Chroma.Application.Modules.Users.Dtos;
 using Chroma.Application.Modules.Users.Services;
 using Chroma.Domain.Entities;
@@ -10,7 +11,8 @@ namespace Chroma.Infrastructure.Services;
 public class UserService(
     IApplicationDbContext dbContext,
     ICurrentTenant currentTenant,
-    IPasswordHasher passwordHasher) : IUserService
+    IPasswordHasher passwordHasher,
+    ISubscriptionService subscriptionService) : IUserService
 {
     public async Task<UserSearchResult> SearchAsync(UserSearchRequest request, CancellationToken cancellationToken)
     {
@@ -79,6 +81,8 @@ public class UserService(
         var tenantId = currentTenant.TenantId
             ?? throw new InvalidOperationException("Tenant context is required.");
 
+        await subscriptionService.EnsureSeatAvailableAsync(tenantId, cancellationToken);
+
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
         if (user is not null)
@@ -140,13 +144,21 @@ public class UserService(
             return null;
         }
 
+        var nextStatus = string.IsNullOrWhiteSpace(request.Status)
+            ? membership.Status
+            : request.Status.Trim().ToLowerInvariant();
+
+        if (!string.Equals(membership.Status, "active", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(nextStatus, "active", StringComparison.OrdinalIgnoreCase))
+        {
+            await subscriptionService.EnsureSeatAvailableAsync(tenantId, cancellationToken);
+        }
+
         var user = membership.User;
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
         user.Phone = request.Phone;
-        membership.Status = string.IsNullOrWhiteSpace(request.Status)
-            ? membership.Status
-            : request.Status.Trim().ToLowerInvariant();
+        membership.Status = nextStatus;
         user.UpdatedAtUtc = DateTime.UtcNow;
         membership.UpdatedAtUtc = DateTime.UtcNow;
 
